@@ -1,0 +1,43 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#ROC-curves for bifurcation detection
+The purpose of this notebook is to
+1) Develop a scheme for simulating the dynamics of a double-well potential with additive(for now) noise.
+2) Compute hypothesis tests only using data from a restricted time interval.
+3) Compute (and plot) ROC curves for different significance threshholds, control parameter speed, observation frequency and variance.
+
+## Simulation of paths
+```{r}
+make_path <- function(x0, beta4 = 1, beta2 = 1, sigma = 1, tmax = 150, deltat = 1/12, lambda0 = 0, dlambda){
+  t <- seq(from = 0, to = tmax, by = deltat)
+  x <- numeric(length = length(t))
+  x[1] <- x0
+  dW <- rnorm(n = length(t) - 1)
+  lambda <- t*dlambda + lambda0
+  drift <- function(x, lambda){
+    -beta4*x^3 + beta2*x + lambda
+  }
+  for (i in (2:length(t))){
+    x[i] <- x[i-1] + drift(x = x[i-1], lambda = lambda[i-1])*deltat + dW[i]*sqrt(deltat)*sigma
+  }
+  x
+}
+```
+We test that the function works:
+```{r}
+test_path <- make_path(x0 = 1, tmax = 2, deltat = 0.01, dlambda = -1)
+plot(test_path)
+```
+We desire a controlled experiment where we know the exact time of bifurcation.
+Thus, we need to do some setup computation to establish the critical value of the control parameter.
+By considering the derivative of the drift we find that it has two roots.
+Superimposing the drift with the derivative of the drift shows that the larger root of the derivative is the value of x where the saddle-node bifurcation occurs. We can evaluate $F(x,\lambda)$ in $x = \frac{1}{sqrt{3}}$ and solve the resulting equation for lambda.
+In the case where $\beta_4 = \beta_2 = 1$, we get $\lambda_c = \frac{2}{3 sqrt{3}}$.
+I suppose the easiest way to implement linear movement of the control parameter towards the critical value is through the seq function.
+This also easily lets us introduce an equilibrium period at the start if we so desire.
+
+##Estimation and hypothesis testing
+
