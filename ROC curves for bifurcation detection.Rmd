@@ -70,13 +70,13 @@ hypothesis_tester <- function(data, beta4 = 1, beta2 = 1, classifier = z_test){
 ```
 
 ```{r}
-z_test <- function(x, alpha = 0.5){
-  out <- 0
+z_test <- function(x, alpha = 0.6){
+  rejected <- 0
   Z <- mean(x, na.rm = TRUE)/sd(x, na.rm = TRUE)
   if (pnorm(abs(Z)) > 1-(1-alpha)/2){
-    out <- 1 #Reject = true => bifurcation detected
+    rejected <- 1 #Reject = true => bifurcation detected
   }
-  out
+  out <- c(rejected, Z)
 }
 ```
 
@@ -86,5 +86,41 @@ test_path <- make_path(x0 = 1, sigma = 0.05, tmax = 10, deltat = 0.01, lambda0 =
 hypothesis_tester(data = test_path)
 
 ```
+## Computing ROC curves
+To compute and plot ROC curves we need a vector of parameters along with their associated false positive rates and true positive rates.
+The plan is as follows:
+1) Provide vector of thresholds
+2) Compute false positive rates
+3) Compute true positive rates
+4) Make graph
+5) Compute AOC
+
+We should probably start with points 2 and 3.
+A single MC function should do both, given different inputs: true and false inputs.
+```{r}
+positive_rate_computer <- function(model, method, n = 100){
+  #browser()
+  positives <- 0
+  for (i in (1:n)){
+    test_path <- model()
+    positive <- method(test_path)[1]
+    positives <- positives + positive
+  }
+  rate <- positives/n
+  rate
+}
+```
+Let's test the above function
+```{r}
+#Defining the parameters for the rate computation
+model_H1 <- function(){
+  make_path(x0 = 1, sigma = 0.05, tmax = 10, deltat = 0.01, lambda0 = 0, lambda_end = -1)
+}
+method <- hypothesis_tester
+```
+```{r}
+true_positive_rate <- positive_rate_computer(model = model_H1, method = method, n = 100)
+```
+
 
 
