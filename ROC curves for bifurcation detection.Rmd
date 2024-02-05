@@ -51,7 +51,7 @@ This also easily lets us introduce an equilibrium period at the start if we so d
 
 ##Estimation and hypothesis testing
 ```{r}
-hypothesis_tester <- function(data, beta4 = 1, beta2 = 1, significance = 0.95){
+hypothesis_tester <- function(data, beta4 = 1, beta2 = 1, classifier = z_test){
   x <- data$x
   t <- data$t
   deltat <- t[2] - t[1]
@@ -64,14 +64,27 @@ hypothesis_tester <- function(data, beta4 = 1, beta2 = 1, significance = 0.95){
     x_predicted[i] <- x[i-1] + drift(x[i-1])*deltat
   }
   residuals <- (x-x_predicted)[2:length(x)]
-  residuals
+  out <- z_test(residuals)
+  out
 }
 ```
+
+```{r}
+z_test <- function(x, alpha = 0.5){
+  out <- 0
+  Z <- mean(x, na.rm = TRUE)/sd(x, na.rm = TRUE)
+  if (pnorm(abs(Z)) > 1-(1-alpha)/2){
+    out <- 1 #Reject = true => bifurcation detected
+  }
+  out
+}
+```
+
 We test that the function works:
 ```{r}
 test_path <- make_path(x0 = 1, sigma = 0.05, tmax = 10, deltat = 0.01, lambda0 = 0, lambda_end = -1)
-residuals <- hypothesis_tester(data = test_path)
-plot(residuals)
+hypothesis_tester(data = test_path)
+
 ```
 
 
