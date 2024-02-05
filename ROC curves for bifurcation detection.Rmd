@@ -95,6 +95,7 @@ The plan is as follows:
 4) Make graph
 5) Compute AOC
 
+### Computing positive rates, true and false
 We should probably start with points 2 and 3.
 A single MC function should do both, given different inputs: true and false inputs.
 ```{r}
@@ -121,6 +122,57 @@ method <- hypothesis_tester
 ```{r}
 true_positive_rate <- positive_rate_computer(model = model_H1, method = method, n = 100)
 ```
+
+### Computing positive rates for a vector of thresholds
+We propose the following procedure:
+Create a list of thresholds (This probably has to be hand-made for each method)
+Create a list of "methods" that is a given method for the different thresholds
+Apply the positive rate function to the list of methods. This probably requires making a function that takes only a method as argument.
+Do the above again for true/false.
+Combine vectors and plot/compute AOC.
+
+We start by making a vector of thresholds:
+```{r}
+u <- seq(from = 0, to = 1, by = 0.1)
+thresh <- qnorm(u)[2:(length(u)-1)]
+```
+Now me make a function creating a list of methods - one for each threshold.
+```{r}
+z_tester_maker <- function(thresh){
+  z_test <- function(x, alpha = thresh){
+    rejected <- 0
+    Z <- mean(x, na.rm = TRUE)/sd(x, na.rm = TRUE)
+    if (pnorm(abs(Z)) > 1-(1-alpha)/2){
+      rejected <- 1 #Reject = true => bifurcation detected
+    }
+    out <- c(rejected, Z)
+  }
+  hypothesis_tester <- function(data, beta4 = 1, beta2 = 1, classifier = z_test){
+    x <- data$x
+    t <- data$t
+    deltat <- t[2] - t[1]
+    drift <- function(x){
+      -beta4*x^3 + beta2*x
+    }
+    x_predicted <- numeric(length = length(x))
+    x_predicted[1] <- x[1]
+    for (i in (2:length(x_predicted))){
+      x_predicted[i] <- x[i-1] + drift(x[i-1])*deltat
+    }
+    residuals <- (x-x_predicted)[2:length(x)]
+    out <- z_test(residuals)
+    out
+  }
+  hypothesis_tester
+}
+```
+
+```{r}
+z_testers <- lapply(X = thresh, FUN = z_tester_maker)
+```
+In order to compute rates for each threshold on the same set of paths we need to restructure slightly.
+In the example computed, the rate computer generates the paths that it classifies.
+We need the rate computer to take the set of paths as input.
 
 
 
