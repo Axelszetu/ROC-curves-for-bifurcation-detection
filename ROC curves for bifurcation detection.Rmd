@@ -98,6 +98,44 @@ The plan is as follows:
 ### Computing positive rates, true and false
 We should probably start with points 2 and 3.
 A single MC function should do both, given different inputs: true and false inputs.
+In order to use the same sample paths for different thresholds (and different classifiers) we make a function for generating the data and one for computing positive rate, given a classifier.
+```{r}
+sample_paths_maker <- function(model, n){
+  sample_paths <- vector(mode = "list", length = n)
+  for (i in (1:length(sample_paths))){
+    sample_paths[[i]] <- model()
+  }
+  sample_paths
+}
+```
+
+```{r}
+positive_rate_computer <- function(data, method){
+  n <- length(data)
+  positives <- 0
+  for (i in (1:n)){
+    positive <- method(data[[i]])[1]
+    positives <- positives + positive
+  }
+  rate <- positives/n
+  rate
+}
+```
+Testing the above function:
+```{r}
+model_H1 <- function(){
+  make_path(x0 = 1, sigma = 0.05, tmax = 10, deltat = 0.01, lambda0 = 0, lambda_end = -1)
+}
+method <- hypothesis_tester
+data <- sample_paths_maker(model = model_H1, n = 100)
+```
+We've now managed to create data of the desired format.
+```{r}
+true_positive_rate <- positive_rate_computer(data = data, method <- hypothesis_tester)
+```
+
+
+####Older version that didn't accomodate using same dataset for each threshold and classifier.
 ```{r}
 positive_rate_computer <- function(model, method, n = 100){
   #browser()
@@ -133,7 +171,7 @@ Combine vectors and plot/compute AOC.
 
 We start by making a vector of thresholds:
 ```{r}
-u <- seq(from = 0, to = 1, by = 0.1)
+u <- seq(from = 0.7, to = 0.8, length.out = 11)
 thresh <- qnorm(u)[2:(length(u)-1)]
 ```
 Now me make a function creating a list of methods - one for each threshold.
@@ -173,6 +211,55 @@ z_testers <- lapply(X = thresh, FUN = z_tester_maker)
 In order to compute rates for each threshold on the same set of paths we need to restructure slightly.
 In the example computed, the rate computer generates the paths that it classifies.
 We need the rate computer to take the set of paths as input.
+The above issue has been resolved.
+
+#### Computing rates for each threshold.
+Now, we make a function for computing rates given a vector of functions.
+I suppose this approach disallows us from using apply, since we a are using a different function for each entry in the list.
+```{r}
+positive_rates_computer <- function(data, methods){
+  n <- length(data)
+  l <- length(methods)
+  rates <- numeric(length = l)
+  for (i in (1:l)){
+    rate <- positive_rate_computer(data = data, method = methods[[i]])
+    rates[i] <- rate
+  }
+  rates
+}
+```
+```{r}
+true_positive_rates <- positive_rates_computer(data = data, methods = z_testers)
+```
+```{r}
+model_H0 <- function(){
+  make_path(x0 = 1, sigma = 0.05, tmax = 10, deltat = 0.01, lambda0 = 0, lambda_end = 0)
+}
+data_H0 <- sample_paths_maker(model = model_H0, n = 100)
+```
+```{r}
+false_positive_rates <- positive_rates_computer(data = data_H0, methods = z_testers)
+```
+It looks like we have a perfect classifier for our problem.
+It won't make a particularly nice plot, so we should probably tinker with the parameters to find something that will give a sensible output.
+Having a nondegenerate output will help us test and troubleshoot the implementation.
+Below we make a small script for tinkering with the parameters of the model.
+The purpose is the find a set of parameters (including thresholds) that give a nondegenerate ROC curve.
+
+```{r}
+model_H0 <- function(){
+  make_path(x0 = 1, sigma = 0.1, tmax = 10, deltat = 0.05, lambda0 = 0, lambda_end = 0)
+}
+data_H0 <- sample_paths_maker(model = model_H0, n = 100)
+model_H1 <- function(){
+  make_path(x0 = 1, sigma = 0.1, tmax = 10, deltat = 0.05, lambda0 = 0, lambda_end = -1)
+}
+data_H1 <- sample_paths_maker(model = model_H1, n = 100)
+u <- seq(from = 0.7, to = 0.8, length.out = 11)
+thresh <- qnorm(u)[2:(length(u)-1)]
+true_positive_rates <- positive_rates_computer(data = data_H1, methods = z_testers)
+false_positive_rates <- positive_rates_computer(data = data_H0, methods = z_testers)
+```
 
 
 
