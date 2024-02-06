@@ -3,7 +3,7 @@ title: "R Notebook"
 output: html_notebook
 ---
 ```{r}
-library(BSDA)
+library(ggplot2)
 ```
 
 
@@ -177,7 +177,7 @@ thresh <- qnorm(u)[2:(length(u)-1)]
 Now me make a function creating a list of methods - one for each threshold.
 ```{r}
 z_tester_maker <- function(thresh){
-  z_test <- function(x, alpha = thresh){
+  z_test <- function(x, alpha){
     rejected <- 0
     Z <- mean(x, na.rm = TRUE)/sd(x, na.rm = TRUE)
     if (pnorm(abs(Z)) > 1-(1-alpha)/2){
@@ -198,7 +198,7 @@ z_tester_maker <- function(thresh){
       x_predicted[i] <- x[i-1] + drift(x[i-1])*deltat
     }
     residuals <- (x-x_predicted)[2:length(x)]
-    out <- z_test(residuals)
+    out <- z_test(x = residuals, alpha = thresh)
     out
   }
   hypothesis_tester
@@ -247,19 +247,72 @@ Below we make a small script for tinkering with the parameters of the model.
 The purpose is the find a set of parameters (including thresholds) that give a nondegenerate ROC curve.
 
 ```{r}
+sigma_test <- 0.1
+tmax <- 10
+deltat <- 0.1
+u <- seq(from = 0.1, to = 0.9, length.out = 11)
+thresh <- qnorm(u)[2:(length(u)-1)]
+
 model_H0 <- function(){
-  make_path(x0 = 1, sigma = 0.1, tmax = 10, deltat = 0.05, lambda0 = 0, lambda_end = 0)
+  make_path(x0 = 1, sigma = sigma_test, tmax = tmax, deltat = deltat, lambda0 = 0, lambda_end = 0)
 }
 data_H0 <- sample_paths_maker(model = model_H0, n = 100)
 model_H1 <- function(){
-  make_path(x0 = 1, sigma = 0.1, tmax = 10, deltat = 0.05, lambda0 = 0, lambda_end = -1)
+  make_path(x0 = 1, sigma =sigma_test, tmax = tmax, deltat = deltat, lambda0 = 0, lambda_end = -1)
 }
 data_H1 <- sample_paths_maker(model = model_H1, n = 100)
-u <- seq(from = 0.7, to = 0.8, length.out = 11)
-thresh <- qnorm(u)[2:(length(u)-1)]
-true_positive_rates <- positive_rates_computer(data = data_H1, methods = z_testers)
 false_positive_rates <- positive_rates_computer(data = data_H0, methods = z_testers)
+true_positive_rates <- positive_rates_computer(data = data_H1, methods = z_testers)
+
 ```
+No matter how i set the parameters, I get 0 for false positive rate.
+I'll try to examine my code.
+... i cant find anything wrong right now.
 
-
+Let's just construct a set of pairs that give us something that looks like an ROC curve.
+```{r}
+x_test <- seq(from = 0, to = 1, by = 0.1)
+y_test <- (sin(x_test*pi/2))^(1/2)
+ plot(x_test, y_test)
+```
+This looks somewhat pretty.
+Let's make a ggplot.
+####Making a ggplot
+```{r}
+test_plot_data <- data.frame(x_test, y_test)
+test_plot <- ggplot(data = test_plot_data, mapping = aes(x = x_test, y = y_test)) + geom_line()
+test_plot
+```
+####Computing AUC for pairs of positive rates.
+We proceed by Riemann sum approximation.
+In the constructed example above, the points were equidistant.
+They will not in general be when we have true/false positive rate paris.
+We should incorporate this in the first implementation.
+```{r}
+AUC_computer <- function(data){
+  x <- data[[1]]
+  y <- data[[2]]
+  no_intermediate_points <- length(x) + 1
+  intermediate_points <- numeric(length = no_intermediate_points)
+  for (i in (2:(no_intermediate_points - 1))){
+    intermediate_points[i] <- (x[i-1] + x[i])/2
+  }
+  intermediate_points[no_intermediate_points] <- 1
+  interval_sizes <- diff(intermediate_points)
+  columns <- interval_sizes*y
+  AUC <- sum(columns)
+  out <- list(interval_sizes, y, columns, AUC)
+}
+```
+Testing
+```{r}
+AUC_test <- AUC_computer(data = test_plot_data)
+AUC_test
+```
+How in the world does this come back greater than 1?
+1 appears to be the maximal value, since AUC is a subset of the unit square...
+After changing a sign, we get 0.25, which is a theoretically possible value, but not a particularly desirable one.
+After using the appropriate variables, we get 0.75, which seems to correspond to the plot.
+The next question is; why are the first and last intervals smaller?
+Ideally, when observations are equally spaced, they should also be equally weighted.
 
