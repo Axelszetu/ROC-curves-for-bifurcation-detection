@@ -1,10 +1,9 @@
 ---
-title: "ROC curves for bifurcation detection, sketchbook"
+title: "ROC curves for bifurcation detection, for presentation"
 output: html_notebook
 ---
 ```{r}
 library(ggplot2)
-library(BSDA)
 ```
 
 
@@ -31,26 +30,33 @@ make_path <- function(x0, beta4 = 1, beta2 = 1, sigma = 1, tmax = 2, deltat = 0.
   data.frame(t,x)
 }
 ```
-We test that the function works:
+We test that the function works and make plots for different speeds of lambda change:
 ```{r}
 test_path <- make_path(x0 = 1, sigma = 0.05, tmax = 10, deltat = 0.01, lambda0 = 0, lambda_end = -1)
 plot(test_path$x)
+test_path2 <- make_path(x0 = 1, sigma = 0.05, tmax = 10, deltat = 0.01, lambda0 = 0, lambda_end = -0.4)
+plot(test_path2$x)
+test_path3 <- make_path(x0 = 1, sigma = 0.05, tmax = 10, deltat = 0.01, lambda0 = 0, lambda_end = -0.1)
+plot(test_path3$x)
+test_path4 <- make_path(x0 = 1, sigma = 0.05, tmax = 10, deltat = 0.01, lambda0 = 0, lambda_end = 0)
+plot(test_path4$x)
 ```
-It is worth noting that even with relatively strong parameter movement over the time period, we are not guaranteed to cross the 0 point.
-This also depends on the noise.
-It is also worth noting that the equilibrium value of x at the time of bifurcation is 0.6, so we would not necessarily expect to have crossed 0 by the end of the simulation.
-Increasing the time of running also gives the process time to "settle in" to its new equilibrium.
-It might be interesting to make a plot of a number of simulated paths over different parameters.
+In the first picture, it is clear that bifurcation has occured.
+In the 2nd picture, we have just exacly reached the critical value.
+In the 3rd picture, lambda has moved, but only 1/4 of the way to the critical value.
+In the 4th picture lambda is constant.
+The challenge is distinguishing between cases 3 and 4.
+
 We desire a controlled experiment where we know the exact time of bifurcation.
 Thus, we need to do some setup computation to establish the critical value of the control parameter.
 By considering the derivative of the drift we find that it has two roots.
 Superimposing the drift with the derivative of the drift shows that the larger root of the derivative is the value of x where the saddle-node bifurcation occurs. We can evaluate $F(x,\lambda)$ in $x = \frac{1}{sqrt{3}}$ and solve the resulting equation for lambda.
 In the case where $\beta_4 = \beta_2 = 1$, we get $\lambda_c = \frac{2}{3 sqrt{3}}$.
-Since we now have a procedure for finding the bifurcation points, we can in principle automate the scaling of dlambda such that bifurcation always occurs at the end of the simulation. In that case we need to make sure that the initial value of lambda is a pre-bifurcation state.
-I suppose the easiest way to implement linear movement of the control parameter towards the critical value is through the seq function.
-This also easily lets us introduce an equilibrium period at the start if we so desire.
+See the following animation for a visualization:
+https://www.geogebra.org/calculator/p9mqsm98
 
 ##Estimation and hypothesis testing
+The following code implements a simple t-test that takes the residuals of a sample path as compared to a null-hypothesis and either rejects, og non-rejects the hypothesis.
 ```{r}
 hypothesis_tester <- function(data, beta4 = 1, beta2 = 1, classifier = z_test){
   x <- data$x
@@ -122,18 +128,6 @@ positive_rate_computer <- function(data, method){
   rate
 }
 ```
-Testing the above function:
-```{r}
-model_H1 <- function(){
-  make_path(x0 = 1, sigma = 0.05, tmax = 10, deltat = 0.01, lambda0 = 0, lambda_end = -1)
-}
-method <- hypothesis_tester
-data <- sample_paths_maker(model = model_H1, n = 100)
-```
-We've now managed to create data of the desired format.
-```{r}
-true_positive_rate <- positive_rate_computer(data = data, method <- hypothesis_tester)
-```
 
 
 ####Older version that didn't accomodate using same dataset for each threshold and classifier.
@@ -166,7 +160,7 @@ true_positive_rate <- positive_rate_computer(model = model_H1, method = method, 
 We propose the following procedure:
 Create a list of thresholds (This probably has to be hand-made for each method)
 Create a list of "methods" that is a given method for the different thresholds
-Apply the positive rate function to the list of methods. This probably requires making a function that takes only a method as argument.
+Apply the positive rate function to the list of methods.
 Do the above again for true/false.
 Combine vectors and plot/compute AOC.
 
@@ -216,7 +210,6 @@ The above issue has been resolved.
 
 #### Computing rates for each threshold.
 Now, we make a function for computing rates given a vector of functions.
-I suppose this approach disallows us from using apply, since we a are using a different function for each entry in the list.
 ```{r}
 positive_rates_computer <- function(data, methods){
   n <- length(data)
@@ -241,9 +234,28 @@ data_H0 <- sample_paths_maker(model = model_H0, n = 100)
 ```{r}
 false_positive_rates <- positive_rates_computer(data = data_H0, methods = z_testers)
 ```
-It looks like we have a perfect classifier for our problem.
-It won't make a particularly nice plot, so we should probably tinker with the parameters to find something that will give a sensible output.
-Having a nondegenerate output will help us test and troubleshoot the implementation.
+
+####Computing AUC for pairs of positive rates.
+We proceed by Riemann sum approximation.
+```{r}
+AUC_computer <- function(data){
+  x <- data[[1]]
+  y <- data[[2]]
+  no_intermediate_points <- length(x) + 1
+  intermediate_points <- numeric(length = no_intermediate_points)
+  for (i in (2:(no_intermediate_points - 1))){
+    intermediate_points[i] <- (x[i-1] + x[i])/2
+  }
+  intermediate_points[no_intermediate_points] <- 1
+  interval_sizes <- diff(intermediate_points)
+  columns <- interval_sizes*y
+  AUC <- sum(columns)
+  out <- list(AUC)
+  #out <- list(interval_sizes, y, columns, AUC)
+}
+```
+
+#### Tuning parameters to find a problem that is not too easy
 Below we make a small script for tinkering with the parameters of the model.
 The purpose is the find a set of parameters (including thresholds) that give a nondegenerate ROC curve.
 
@@ -271,55 +283,5 @@ AUC_score
 AOC_curve <- ggplot(data = positive_rates, mapping = aes(x = x_test, y = y_test)) + geom_line()
 AOC_curve
 ```
-No matter how i set the parameters, I get 0 for false positive rate.
-I'll try to examine my code.
-... i cant find anything wrong right now.
-
-Let's just construct a set of pairs that give us something that looks like an ROC curve.
-```{r}
-x_test <- seq(from = 0, to = 1, by = 0.1)
-y_test <- (sin(x_test*pi/2))^(1/2)
-plot(x_test, y_test)
-```
-This looks somewhat pretty.
-Let's make a ggplot.
-####Making a ggplot
-```{r}
-test_plot_data <- data.frame(x_test, y_test)
-test_plot <- ggplot(data = test_plot_data, mapping = aes(x = x_test, y = y_test)) + geom_line()
-test_plot
-```
-####Computing AUC for pairs of positive rates.
-We proceed by Riemann sum approximation.
-In the constructed example above, the points were equidistant.
-They will not in general be when we have true/false positive rate paris.
-We should incorporate this in the first implementation.
-```{r}
-AUC_computer <- function(data){
-  x <- data[[1]]
-  y <- data[[2]]
-  no_intermediate_points <- length(x) + 1
-  intermediate_points <- numeric(length = no_intermediate_points)
-  for (i in (2:(no_intermediate_points - 1))){
-    intermediate_points[i] <- (x[i-1] + x[i])/2
-  }
-  intermediate_points[no_intermediate_points] <- 1
-  interval_sizes <- diff(intermediate_points)
-  columns <- interval_sizes*y
-  AUC <- sum(columns)
-  out <- list(AUC)
-  #out <- list(interval_sizes, y, columns, AUC)
-}
-```
-Testing
-```{r}
-AUC_test <- AUC_computer(data = test_plot_data)
-AUC_test
-```
-How in the world does this come back greater than 1?
-1 appears to be the maximal value, since AUC is a subset of the unit square...
-After changing a sign, we get 0.25, which is a theoretically possible value, but not a particularly desirable one.
-After using the appropriate variables, we get 0.75, which seems to correspond to the plot.
-The next question is; why are the first and last intervals smaller?
-Ideally, when observations are equally spaced, they should also be equally weighted.
+In the chunk above, the parameters give a problem that yields a meaningful ROC-curve.
 
