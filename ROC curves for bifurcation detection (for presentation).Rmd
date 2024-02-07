@@ -7,7 +7,7 @@ library(ggplot2)
 ```
 
 
-#ROC-curves for bifurcation detection
+# ROC-curves for bifurcation detection
 The purpose of this notebook is to
 1) Develop a scheme for simulating the dynamics of a double-well potential with additive(for now) noise.
 2) Compute hypothesis tests only using data from a restricted time interval.
@@ -50,12 +50,12 @@ The challenge is distinguishing between cases 3 and 4.
 We desire a controlled experiment where we know the exact time of bifurcation.
 Thus, we need to do some setup computation to establish the critical value of the control parameter.
 By considering the derivative of the drift we find that it has two roots.
-Superimposing the drift with the derivative of the drift shows that the larger root of the derivative is the value of x where the saddle-node bifurcation occurs. We can evaluate $F(x,\lambda)$ in $x = \frac{1}{sqrt{3}}$ and solve the resulting equation for lambda.
-In the case where $\beta_4 = \beta_2 = 1$, we get $\lambda_c = \frac{2}{3 sqrt{3}}$.
+Superimposing the drift with the derivative of the drift shows that the larger root of the derivative is the value of x where the saddle-node bifurcation occurs. We can evaluate $F(x,\lambda)$ in $x = \frac{1}{\sqrt{3}}$ and solve the resulting equation for lambda.
+In the case where $\beta_4 = \beta_2 = 1$, we get $\lambda_c = \frac{2}{3 \sqrt{3}}$.
 See the following animation for a visualization:
 https://www.geogebra.org/calculator/p9mqsm98
 
-##Estimation and hypothesis testing
+## Estimation and hypothesis testing
 The following code implements a simple t-test that takes the residuals of a sample path as compared to a null-hypothesis and either rejects, og non-rejects the hypothesis.
 ```{r}
 hypothesis_tester <- function(data, beta4 = 1, beta2 = 1, classifier = z_test){
@@ -87,12 +87,6 @@ z_test <- function(x, alpha = 0.4){
 }
 ```
 
-We test that the function works:
-```{r}
-test_path <- make_path(x0 = 1, sigma = 0.05, tmax = 10, deltat = 0.01, lambda0 = 0, lambda_end = -1)
-hypothesis_tester(data = test_path)
-
-```
 ## Computing ROC curves
 To compute and plot ROC curves we need a vector of parameters along with their associated false positive rates and true positive rates.
 The plan is as follows:
@@ -127,33 +121,6 @@ positive_rate_computer <- function(data, method){
   rate <- positives/n
   rate
 }
-```
-
-
-####Older version that didn't accomodate using same dataset for each threshold and classifier.
-```{r}
-positive_rate_computer <- function(model, method, n = 100){
-  #browser()
-  positives <- 0
-  for (i in (1:n)){
-    test_path <- model()
-    positive <- method(test_path)[1]
-    positives <- positives + positive
-  }
-  rate <- positives/n
-  rate
-}
-```
-Let's test the above function
-```{r}
-#Defining the parameters for the rate computation
-model_H1 <- function(){
-  make_path(x0 = 1, sigma = 0.05, tmax = 10, deltat = 0.01, lambda0 = 0, lambda_end = -1)
-}
-method <- hypothesis_tester
-```
-```{r}
-true_positive_rate <- positive_rate_computer(model = model_H1, method = method, n = 100)
 ```
 
 ### Computing positive rates for a vector of thresholds
@@ -200,9 +167,6 @@ z_tester_maker <- function(thresh){
 }
 ```
 
-```{r}
-z_testers <- lapply(X = thresh, FUN = z_tester_maker)
-```
 In order to compute rates for each threshold on the same set of paths we need to restructure slightly.
 In the example computed, the rate computer generates the paths that it classifies.
 We need the rate computer to take the set of paths as input.
@@ -222,20 +186,8 @@ positive_rates_computer <- function(data, methods){
   rates
 }
 ```
-```{r}
-true_positive_rates <- positive_rates_computer(data = data, methods = z_testers)
-```
-```{r}
-model_H0 <- function(){
-  make_path(x0 = 1, sigma = 0.05, tmax = 10, deltat = 0.01, lambda0 = 0, lambda_end = 0)
-}
-data_H0 <- sample_paths_maker(model = model_H0, n = 100)
-```
-```{r}
-false_positive_rates <- positive_rates_computer(data = data_H0, methods = z_testers)
-```
 
-####Computing AUC for pairs of positive rates.
+#### Computing AUC for pairs of positive rates.
 We proceed by Riemann sum approximation.
 ```{r}
 AUC_computer <- function(data){
@@ -277,11 +229,10 @@ data_H1 <- sample_paths_maker(model = model_H1, n = 100)
 false_positive_rates <- positive_rates_computer(data = data_H0, methods = z_testers)
 true_positive_rates <- positive_rates_computer(data = data_H1, methods = z_testers)
 positive_rates <- data.frame(false_positive_rates, true_positive_rates)
-positive_rates
 AUC_score <- 1-AUC_computer(data = positive_rates)[[1]]
 AUC_score
-AOC_curve <- ggplot(data = positive_rates, mapping = aes(x = x_test, y = y_test)) + geom_line()
-AOC_curve
+ROC_curve <- ggplot(data = positive_rates, mapping = aes(x = x_test, y = y_test)) + geom_line()
+ROC_curve
 ```
 In the chunk above, the parameters give a problem that yields a meaningful ROC-curve.
 
