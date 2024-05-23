@@ -1,0 +1,22 @@
+---
+title: "ROC curves for Variance and Autocorrelation as EWS"
+author: "Axel Szetu"
+date: "2024-05-21"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+The following notebook is written as an extension to the notebook AMOCestimation released as supplementaru material to Ditlevsen et Al 2023.
+In particular we use the simulated traces to MC-estimate the true positive rate of the variance-, and autocorrelation-based EWS used in the article.
+This is done for a grid of significance levels and their associated quantiles and observation times.
+We will then simulate traces of the process under the "null hypothesis" where $\lambda(t) = \lambda_0$ to estimate false positive rates.
+This is done for the same grid of significance levels and observation times.
+Then for each observation time we plot the true positive rate vector against the false positive vector.
+
+```{r}
+#We need
+```
+
