@@ -19,5 +19,9 @@ for (i in (1:no_thresh)){
   positive_rates[i] <- no_triggered/no_paths
 }
 
-
+#This is written to take a matrix with a path in each column
+#Can we meld xx.data to such a format?
+#Is there an issue wit a matrix having 1000 columns?
+#I mean, this one has more than a million rows, so recasting it would give us 10,000 by 1000.
+#The number of cells doesn't increase
 
