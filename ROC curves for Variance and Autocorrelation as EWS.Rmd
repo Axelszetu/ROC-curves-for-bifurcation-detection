@@ -9,14 +9,285 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-The following notebook is written as an extension to the notebook AMOCestimation released as supplementaru material to Ditlevsen et Al 2023.
-In particular we use the simulated traces to MC-estimate the true positive rate of the variance-, and autocorrelation-based EWS used in the article.
+The following notebook is written as an extension to the notebook AMOCestimation released as supplementary material to Ditlevsen et Al 2023.
+In particular we use the simulation scheme to generate paths of the model to MC-estimate the true positive rate of the variance-, and autocorrelation-based EWS used in the article.
 This is done for a grid of significance levels and their associated quantiles and observation times.
 We will then simulate traces of the process under the "null hypothesis" where $\lambda(t) = \lambda_0$ to estimate false positive rates.
 This is done for the same grid of significance levels and observation times.
 Then for each observation time we plot the true positive rate vector against the false positive vector.
-
+The following chunk loads the packages needed to run the notebook.
 ```{r}
-#We need
+library(ggplot2)   ## For nice plotting
+library(plotROC)   ## For plotting ROC-curves
+library(stats4)    ## For maximum likelihood facilities (mle())
+library(writexl)   ## For writing data frames into excel files
 ```
+
+##Simulation of data
+The following code defines functions to be used for simulation of the model.
+It is taken from the supplementary material from Ditlevsen.
+```{r}
+## Function returning a trajectory up to a crossing time of X(t)  
+## over the barrier as a function of
+## the initial condition X0, the size of the noise sigma, 
+## the integration time step dt, and the length of the simulation N
+## and with time varying lambda:
+X.traj <- function(sigma = 0.1, lambda0 = -2, tau = 1000, m = 0, a = 1,  
+                   T0 = 0, X0 = sqrt(2), dt = 0.1, Ymax = 1000000){
+  ##T0: Time before ramping starts
+  ##Ymax: Max number of simulated points, if tipping does not happen
+  Y = 0  ## Counting integration steps up to tipping
+  xbarrier = m - 2 ## One smaller than crossing point at start
+  Xtraj = X0
+  X = X0
+  ## Simulation during stationary period, constant lambda
+  while(X > xbarrier & Y < T0/dt){
+    X = S.onestep(sigma = sigma, lambda = lambda0,  
+                  m = m, a = a, X0 = X, dt = dt)
+    Xtraj = c(Xtraj, X)
+    Y = Y+1
+  }
+  ## Simulation after lambda starts increasing
+  while(X > xbarrier & Y < Ymax){
+    time = dt * (Y - T0/dt) ## Time after lambda starts increasing
+    lambda = lambda0*(1-time/tau)
+    X = S.onestep(sigma = sigma, lambda = lambda0*(1 - time/tau), 
+                  m = m, a = a, X0 = X, dt = dt)
+    Xtraj = c(Xtraj, X)
+    Y = Y + 1
+  }
+  Y = Y*dt
+  return(list(FPT = Y, X = Xtraj))
+}
+
+## Function returning a simulation of the simple model one time step
+## using the Euler-Maruyama scheme
+S.onestep <- function(sigma = 0.1, lambda = 0, m = 0, a = 1, X0 = 1, dt = 0.1){
+  dWt = rnorm(1,0,1)    ## Draws a random increment
+  Y   = X0 - a*(X0-m)^2*dt - lambda*dt + sqrt(dt)*sigma*dWt
+  return(Y)
+}
+```
+
+The following chunk simulates paths from a model where the pre-ramping time is 100 and tau is 200, with a total length of 300.
+This too is taken from the supplementary material of Ditlevsen.
+```{r}
+## Parameter values used in the simulation
+tau  = 200  ## 
+l0   = -3   ## Baseline control parameter lambda
+sigm = 0.25  ## 
+s2   = sigm^2  ## 
+
+## Settings for simulation and estimation
+rep = 10   ## Number of repetitions of simulated traces
+Tw  = 50   ## Window size for variance and autocorrelation estimation
+t0  = 100  ## Start of change in control parameter lambda
+dt  = 0.1  ## Time step between observations
+nloop = 10 ## Substeps between observation steps to decrease discretization error 
+alpha0 = 2*sqrt(-l0)      ## Baseline alpha in OU approximation
+rho0 = exp(-alpha0 * dt)    ## Baseline autocorrelation in OU approximation
+gam0 = s2/(2*alpha0)        ## Baseline variance in OU approximation
+vargam0 = 2*gam0^2/(alpha0 * Tw)  ## Baseline variance of variance estimator
+varrho0 = 2*alpha0*dt^2/Tw  ## Baseline variance of autocorrelation estimator
+q95 = qnorm(0.95)  ## 95% quantile of normal distribution
+
+X0   = sqrt(-l0)  ## Starting value for simulation
+Tend = t0 + tau   ## Length of simulations
+time = seq(0, Tend, dt) - t0  ## Time for simulations
+n    = length(time)  ## Number of observation points in simulations
+lt   = c(rep(l0, t0/dt), (l0*(1 - (0:(tau/dt))/(tau/dt)))) ## Evolution of lambda
+mu   = sqrt(-lt)     ## Evolution of mu
+alpha = 2 * sqrt(-lt)    ## Evolution of alpha
+rho  = exp( - alpha * dt)  ## Evolution of autocorrelation
+gam  = s2/(2*alpha)        ## Evolution of variance
+vargam = 2*gam^2/(alpha*Tw) ## Evolution of variance of var-estimator
+varrho = 2*alpha*dt^2/Tw   ## Evolution of variance of corr-estimator
+
+## Simulations
+X.H1 = matrix(-10, ncol = rep, nrow = n)
+
+for (i in 1:rep){
+  #Initial condition is random from stationary distribution
+  x0 = X0 + rnorm(1, mean = 0, sd = sigm/sqrt(2*alpha0)) 
+  
+  xx = X.traj(sigma = sigm, lambda0 = l0, tau = tau, m = 0, a = 1,
+              T0 = t0, X0 = x0, dt = dt/nloop, 
+              Ymax = nloop*n-1)
+  nx = length(xx$X) ##If tipping happens before, trajectory is shorter than nt
+  xxx = xx$X[seq(1, nx, nloop)] ##Only keep points at observed times
+  nxx = min(n, length(xxx))
+  X.H1[1:nxx, i] = xxx[1:nxx]
+}
+```
+
+The following chuck defines a function for simulating paths from the model without ramping.
+It has been adapted from the supplementary material of Ditlevsen.
+```{r}
+X.traj.H0 <- function(sigma = 0.1, lambda0 = -2, tau = 1000, m = 0, a = 1,  
+                   T0 = 0, X0 = sqrt(2), dt = 0.1, Ymax = 1000000){
+  ##T0: Time before ramping starts
+  ##Ymax: Max number of simulated points, if tipping does not happen
+  Y = 0  ## Counting integration steps up to tipping
+  xbarrier = m - 2 ## One smaller than crossing point at start
+  Xtraj = X0
+  X = X0
+  ## Simulation during stationary period, constant lambda
+  while(X > xbarrier & Y < T0/dt){
+    X = S.onestep(sigma = sigma, lambda = lambda0,  
+                  m = m, a = a, X0 = X, dt = dt)
+    Xtraj = c(Xtraj, X)
+    Y = Y+1
+  }
+  Y = Y*dt
+  return(list(FPT = Y, X = Xtraj))
+}
+```
+
+The following chunk simulates paths from a model where the pre-ramping time is 300 and tau is 0, with a total length of 300. This corresponds to the model with no ramping.
+```{r}
+## Parameter values used in the simulation
+tau  = 0  ## 
+l0   = -3   ## Baseline control parameter lambda
+sigm = 0.25  ## 
+s2   = sigm^2  ## 
+
+## Settings for simulation and estimation
+rep = 10   ## Number of repetitions of simulated traces
+Tw  = 50   ## Window size for variance and autocorrelation estimation
+t0  = 300  ## Start of change in control parameter lambda
+dt  = 0.1  ## Time step between observations
+nloop = 10 ## Substeps between observation steps to decrease discretization error 
+alpha0 = 2*sqrt(-l0)      ## Baseline alpha in OU approximation
+rho0 = exp(-alpha0 * dt)    ## Baseline autocorrelation in OU approximation
+gam0 = s2/(2*alpha0)        ## Baseline variance in OU approximation
+vargam0 = 2*gam0^2/(alpha0 * Tw)  ## Baseline variance of variance estimator
+varrho0 = 2*alpha0*dt^2/Tw  ## Baseline variance of autocorrelation estimator
+q95 = qnorm(0.95)  ## 95% quantile of normal distribution
+
+X0   = sqrt(-l0)  ## Starting value for simulation
+Tend = t0 + tau   ## Length of simulations
+time = seq(0, Tend, dt) - t0  ## Time for simulations
+n    = length(time)  ## Number of observation points in simulations
+lt   = c(rep(l0, t0/dt), (l0*(1 - (0:(tau/dt))/(tau/dt)))) ## Evolution of lambda
+mu   = sqrt(-lt)     ## Evolution of mu
+alpha = 2 * sqrt(-lt)    ## Evolution of alpha
+rho  = exp( - alpha * dt)  ## Evolution of autocorrelation
+gam  = s2/(2*alpha)        ## Evolution of variance
+vargam = 2*gam^2/(alpha*Tw) ## Evolution of variance of var-estimator
+varrho = 2*alpha*dt^2/Tw   ## Evolution of variance of corr-estimator
+
+## Simulations
+X.H0 = matrix(-10, ncol = rep, nrow = n)
+
+for (i in 1:rep){
+  #Initial condition is random from stationary distribution
+  x0 = X0 + rnorm(1, mean = 0, sd = sigm/sqrt(2*alpha0)) 
+  
+  xx = X.traj.H0(sigma = sigm, lambda0 = l0, tau = tau, m = 0, a = 1,
+              T0 = t0, X0 = x0, dt = dt/nloop, 
+              Ymax = nloop*n-1)
+  nx = length(xx$X) ##If tipping happens before, trajectory is shorter than nt
+  xxx = xx$X[seq(1, nx, nloop)] ##Only keep points at observed times
+  nxx = min(n, length(xxx))
+  X.H0[1:nxx, i] = xxx[1:nxx]
+}
+
+```
+
+##Computation of Early Warning Signals
+The following chunk computes the variance and autocorrelation within each window for both datasets.
+```{r}
+### Variance and autocorrelation estimation in running windows
+### Data is detrended within each window
+
+var.matrix.H1 = matrix(-1, ncol = rep, nrow = n - Tw/dt)
+rho.matrix.H1 = matrix(-1, ncol = rep, nrow = n - Tw/dt)
+for(i in 1:(n - Tw/dt)){
+  for(j in 1:rep){
+    data.i = X.H1[i:(i+Tw/dt),j] ## Get data in running window
+    data.i = data.i[data.i > -2.3] ## Remove data if tipped
+    time.i = (1:length(data.i))*dt ## Get time interval for data in running window
+    temp   = lm(data.i ~ time.i)   ## Get linear trend
+    data.i = data.i - temp$fitted.values ## Subtract linear trend
+    var.matrix.H1[i, j] = var(data.i) ## Variance estimate in running window
+    rho.matrix.H1[i, j] = acf(data.i, lag.max = 1, plot = FALSE)$acf[2] ## Autocorrelation estimate in running window
+  }
+}
+
+var.matrix.H0 = matrix(-1, ncol = rep, nrow = n - Tw/dt)
+rho.matrix.H0 = matrix(-1, ncol = rep, nrow = n - Tw/dt)
+for(i in 1:(n - Tw/dt)){
+  for(j in 1:rep){
+    data.i = X.H0[i:(i+Tw/dt),j] ## Get data in running window
+    data.i = data.i[data.i > -2.3] ## Remove data if tipped
+    time.i = (1:length(data.i))*dt ## Get time interval for data in running window
+    temp   = lm(data.i ~ time.i)   ## Get linear trend
+    data.i = data.i - temp$fitted.values ## Subtract linear trend
+    var.matrix.H0[i, j] = var(data.i) ## Variance estimate in running window
+    rho.matrix.H0[i, j] = acf(data.i, lag.max = 1, plot = FALSE)$acf[2] ## Autocorrelation estimate in running window
+  }
+}
+```
+
+##Construction of ROC-curves
+The following chunk defines a function taking two datasets H1, H0, a time and a vector of significance thresholds as arguments and returns a ROC curve associated with the EWS at that time for the two data sets.
+```{r}
+ROC.maker <- function(H1.data, H0.data, grid, mean0, var0, t.obs = 3000, dt = 0.1, Tw = 50){
+  thresholds <- qnorm(grid)
+  no_thresh <- length(thresholds)
+  thresh_scaled <- mean0 + thresholds*sqrt(var0)
+  no_paths <- dim(H1.data)[2]
+  t.obs <- t.obs - Tw/dt
+
+  true_positive_rates <- numeric(length = no_thresh)
+  for (i in (1:no_thresh)){
+    thresh <- mean0 + thresholds[i] * sqrt(var0)
+    no_triggered <- 0
+    for(j in (1:no_paths)){
+      path <- H1.data[1:t.obs,j]
+      triggered <- max(path > thresh)
+      no_triggered <- no_triggered + triggered
+    }
+  true_positive_rates[i] <- no_triggered/no_paths
+  }
+
+  false_positive_rates <- numeric(length = no_thresh)
+  for (i in (1:no_thresh)){
+    thresh <- mean0 + thresholds[i] * sqrt(var0)
+    no_triggered <- 0
+    for(j in (1:no_paths)){
+      path <- H0.data[1:t.obs,j]
+      triggered <- max(path > thresh)
+      no_triggered <- no_triggered + triggered
+    }
+  false_positive_rates[i] <- no_triggered/no_paths
+  }
+
+  roc.plot.data <- data.frame(false_positive_rates, true_positive_rates)
+  plt <- ggplot(data = roc.plot.data, aes(x = false_positive_rates, y = true_positive_rates)) +
+    geom_step() +
+    xlim(0,1) + ylim(0,1)
+  
+  plt
+}
+```
+The following chunk constructs an ROC-curve for the variance EWS a situation in which we observe the process until the critical time, at halfway to the critical time from t0, and at t0.
+```{r}
+grid.var.3000 <- seq(from = 0.95, to = 1, length.out = 10)
+ROC.maker(H1.data = var.matrix.H1, H0.data = var.matrix.H0, grid = grid.var.3000, mean0 = gam0, var0 = vargam0, t.obs = 3000, dt = dt, Tw = Tw)
+grid.var.2000 <- seq(from = 0.80, to = 1, length.out = 10)
+ROC.maker(H1.data = var.matrix.H1, H0.data = var.matrix.H0, grid = grid.var.2000, mean0 = gam0, var0 = vargam0, t.obs = 2000, dt = dt, Tw = Tw)
+grid.var.1000 <- seq(from = 0.70, to = 1, length.out = 10)
+ROC.maker(H1.data = var.matrix.H1, H0.data = var.matrix.H0, grid = grid.var.1000, mean0 = gam0, var0 = vargam0, t.obs = 1000, dt = dt, Tw = Tw)
+```
+The following chunk does the same as the above, but for the Rho EWS instead.
+```{r}
+grid.rho.3000 <- seq(from = 0.95, to = 1, length.out = 10)
+ROC.maker(H1.data = rho.matrix.H1, H0.data = rho.matrix.H0, grid = grid.rho.3000, mean0 = rho0, var0 = varrho0, t.obs = 3000, dt = dt, Tw = Tw)
+grid.rho.2000 <- seq(from = 0.80, to = 1, length.out = 10)
+ROC.maker(H1.data = rho.matrix.H1, H0.data = rho.matrix.H0, grid = grid.rho.2000, mean0 = rho0, var0 = varrho0, t.obs = 2000, dt = dt, Tw = Tw)
+grid.rho.1000 <- seq(from = 0.70, to = 1, length.out = 10)
+ROC.maker(H1.data = rho.matrix.H1, H0.data = rho.matrix.H0, grid = grid.rho.1000, mean0 = rho0, var0 = varrho0, t.obs = 1000, dt = dt, Tw = Tw)
+```
+
 
