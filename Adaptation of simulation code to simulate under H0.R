@@ -46,3 +46,7 @@ xx.data.H0 = data.frame(X = c(xx), time = rep(xxtime, nsim),
 
 ## Save for later use
 save(xx.data.H0, nsim, Delta_t, file = "SimulatedTracesH0.Rdata")
+
+
+
+

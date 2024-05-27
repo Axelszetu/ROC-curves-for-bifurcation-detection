@@ -64,7 +64,7 @@ ggplot(data = plotdata, aes(x = time, y = pmax(X,-2.2), group = as.factor(rep)))
   ylab("Realizations") + xlab("Time (years)")
 
 ### Simulations without ramping
-### Simulations adaoted from EWS section
+### Simulations adapted from EWS section
 
 X.traj <- function(sigma = 0.1, lambda0 = -2, tau = 1000, m = 0, a = 1,  
                    T0 = 0, X0 = sqrt(2), dt = 0.1, Ymax = 1000000){
@@ -201,13 +201,12 @@ ggplot(data = plotdata.var.rho.H0, aes(x = time, y = rho, group = as.factor(rep)
   geom_segment(aes(x = Tw, y = 0.89, xend = Tw, yend = 0.91), lineend = "butt", size = 1) +
   annotate("text", x=Tw/2, y=0.925, label= "window size", size = 5)
 
-
-
+#Where we stand at the date of bifurcation
 no_paths <- dim(var.matrix.H0)[2]
-grid <- seq(from = 0.95, to = 1, by = 0.001)
+grid <- seq(from = 0.95, to = 1, length.out = 10)
 thresholds <- qnorm(grid)
 no_thresh <- length(thresholds)
-positive_rates <- numeric(length = no_thresh)
+false_positive_rates <- numeric(length = no_thresh)
 thresh_scaled <- gam0 + thresholds*sqrt(vargam0)
 
 for (i in (1:no_thresh)){
@@ -218,7 +217,49 @@ for (i in (1:no_thresh)){
     triggered <- max(path > thresh)
     no_triggered <- no_triggered + triggered
   }
-  positive_rates[i] <- no_triggered/no_paths
+  false_positive_rates[i] <- no_triggered/no_paths
 }
 
-positive_rates
+false_positive_rates
+
+roc.plot.data <- data.frame(false_positive_rates, true_positive_rates)
+ggplot(data = roc.plot.data, aes(x = false_positive_rates, y = true_positive_rates)) +
+  geom_step() +
+  xlim(0,1) + ylim(0,1)
+
+#Now, where we stand at the time where ramping starts, t=
+
+grid <- seq(from = 0.85, to = 1, length.out = 100)
+thresholds <- qnorm(grid)
+no_thresh <- length(thresholds)
+thresh_scaled <- gam0 + thresholds*sqrt(vargam0)
+
+true_positive_rates <- numeric(length = no_thresh)
+for (i in (1:no_thresh)){
+  thresh <- gam0 + thresholds[i] * sqrt(vargam0)
+  no_triggered <- 0
+  for(j in (1:no_paths)){
+    path <- var.matrix[1:1500,j]
+    triggered <- max(path > thresh)
+    no_triggered <- no_triggered + triggered
+  }
+  true_positive_rates[i] <- no_triggered/no_paths
+}
+
+
+false_positive_rates <- numeric(length = no_thresh)
+for (i in (1:no_thresh)){
+  thresh <- gam0 + thresholds[i] * sqrt(vargam0)
+  no_triggered <- 0
+  for(j in (1:no_paths)){
+    path <- var.matrix.H0[1:1500,j]
+    triggered <- max(path > thresh)
+    no_triggered <- no_triggered + triggered
+  }
+  false_positive_rates[i] <- no_triggered/no_paths
+}
+
+roc.plot.data <- data.frame(false_positive_rates, true_positive_rates)
+ggplot(data = roc.plot.data, aes(x = false_positive_rates, y = true_positive_rates)) +
+  geom_step() +
+  xlim(0,1) + ylim(0,1)
