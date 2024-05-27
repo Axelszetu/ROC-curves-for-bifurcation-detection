@@ -6,10 +6,10 @@ library(reshape)
 
 #Starting with variance
 no_paths <- dim(var.matrix)[2]
-grid <- seq(from = 0.5, to = 1, by = 0.1)
+grid <- seq(from = 0.95, to = 1, length.out = 10)
 thresholds <- qnorm(grid)
 no_thresh <- length(thresholds)
-positive_rates <- numeric(length = no_thresh)
+true_positive_rates <- numeric(length = no_thresh)
 
 for (i in (1:no_thresh)){
   thresh <- gam0 + thresholds[i] * sqrt(vargam0)
@@ -19,8 +19,11 @@ for (i in (1:no_thresh)){
     triggered <- max(path > thresh)
     no_triggered <- no_triggered + triggered
   }
-  positive_rates[i] <- no_triggered/no_paths
+  true_positive_rates[i] <- no_triggered/no_paths
 }
+
+plot(x = false_positive_rates, y = true_positive_rates)
+
 
 #This is written to take a matrix with a path in each column
 #Can we meld xx.data to such a format?
