@@ -229,7 +229,7 @@ ggplot(data = roc.plot.data, aes(x = false_positive_rates, y = true_positive_rat
 
 #Now, where we stand at the time where ramping starts, t=
 
-grid <- seq(from = 0.85, to = 1, length.out = 100)
+grid <- seq(from = 0.95, to = 1, length.out = 10)
 thresholds <- qnorm(grid)
 no_thresh <- length(thresholds)
 thresh_scaled <- gam0 + thresholds*sqrt(vargam0)

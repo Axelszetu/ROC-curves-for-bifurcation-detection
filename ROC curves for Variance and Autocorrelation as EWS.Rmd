@@ -79,10 +79,10 @@ sigm = 0.25  ##
 s2   = sigm^2  ## 
 
 ## Settings for simulation and estimation
-rep = 10   ## Number of repetitions of simulated traces
+rep = 1000   ## Number of repetitions of simulated traces
 Tw  = 50   ## Window size for variance and autocorrelation estimation
 t0  = 100  ## Start of change in control parameter lambda
-dt  = 0.1  ## Time step between observations
+dt  = 1/12  ## Time step between observations
 nloop = 10 ## Substeps between observation steps to decrease discretization error 
 alpha0 = 2*sqrt(-l0)      ## Baseline alpha in OU approximation
 rho0 = exp(-alpha0 * dt)    ## Baseline autocorrelation in OU approximation
@@ -152,10 +152,10 @@ sigm = 0.25  ##
 s2   = sigm^2  ## 
 
 ## Settings for simulation and estimation
-rep = 10   ## Number of repetitions of simulated traces
+rep = 1000   ## Number of repetitions of simulated traces
 Tw  = 50   ## Window size for variance and autocorrelation estimation
 t0  = 300  ## Start of change in control parameter lambda
-dt  = 0.1  ## Time step between observations
+dt  = 1/12  ## Time step between observations
 nloop = 10 ## Substeps between observation steps to decrease discretization error 
 alpha0 = 2*sqrt(-l0)      ## Baseline alpha in OU approximation
 rho0 = exp(-alpha0 * dt)    ## Baseline autocorrelation in OU approximation
@@ -214,6 +214,7 @@ for(i in 1:(n - Tw/dt)){
   }
 }
 
+
 var.matrix.H0 = matrix(-1, ncol = rep, nrow = n - Tw/dt)
 rho.matrix.H0 = matrix(-1, ncol = rep, nrow = n - Tw/dt)
 for(i in 1:(n - Tw/dt)){
@@ -271,23 +272,44 @@ ROC.maker <- function(H1.data, H0.data, grid, mean0, var0, t.obs = 3000, dt = 0.
   plt
 }
 ```
-The following chunk constructs an ROC-curve for the variance EWS a situation in which we observe the process until the critical time, at halfway to the critical time from t0, and at t0.
+
+The following chunk constructs an ROC-curve for the variance EWS at times corresponding to t0 + (0, 0.25, 0.5, 0.75, 1)tau
 ```{r}
-grid.var.3000 <- seq(from = 0.95, to = 1, length.out = 10)
-ROC.maker(H1.data = var.matrix.H1, H0.data = var.matrix.H0, grid = grid.var.3000, mean0 = gam0, var0 = vargam0, t.obs = 3000, dt = dt, Tw = Tw)
-grid.var.2000 <- seq(from = 0.80, to = 1, length.out = 10)
-ROC.maker(H1.data = var.matrix.H1, H0.data = var.matrix.H0, grid = grid.var.2000, mean0 = gam0, var0 = vargam0, t.obs = 2000, dt = dt, Tw = Tw)
-grid.var.1000 <- seq(from = 0.70, to = 1, length.out = 10)
-ROC.maker(H1.data = var.matrix.H1, H0.data = var.matrix.H0, grid = grid.var.1000, mean0 = gam0, var0 = vargam0, t.obs = 1000, dt = dt, Tw = Tw)
+times <- seq(from = 0, to = 1, length.out = 5)
+min_sig_thresh <- seq(from = 0.70, to = 0.95, length.out = 5)
+no_gridpoints <- 10
+t.obs <- seq(from = 1000, to = 3000, length.out = 5)
+plots <- list(length = 5)
+for (i in (1:5)){
+  grid <- seq(from = min_sig_thresh[i], to = 1, length.out = no_gridpoints)
+  plots[[i]] <- ROC.maker(H1.data = var.matrix.H1, H0.data = var.matrix.H0, grid = grid, mean0 = gam0, var0 = vargam0, t.obs = t.obs[i], dt = dt, Tw = Tw)
+}
+plots[1]
+plots[2]
+plots[3]
+plots[4]
+plots[5]
 ```
+
 The following chunk does the same as the above, but for the Rho EWS instead.
 ```{r}
-grid.rho.3000 <- seq(from = 0.95, to = 1, length.out = 10)
-ROC.maker(H1.data = rho.matrix.H1, H0.data = rho.matrix.H0, grid = grid.rho.3000, mean0 = rho0, var0 = varrho0, t.obs = 3000, dt = dt, Tw = Tw)
-grid.rho.2000 <- seq(from = 0.80, to = 1, length.out = 10)
-ROC.maker(H1.data = rho.matrix.H1, H0.data = rho.matrix.H0, grid = grid.rho.2000, mean0 = rho0, var0 = varrho0, t.obs = 2000, dt = dt, Tw = Tw)
-grid.rho.1000 <- seq(from = 0.70, to = 1, length.out = 10)
-ROC.maker(H1.data = rho.matrix.H1, H0.data = rho.matrix.H0, grid = grid.rho.1000, mean0 = rho0, var0 = varrho0, t.obs = 1000, dt = dt, Tw = Tw)
+times <- seq(from = 0, to = 1, length.out = 5)
+min_sig_thresh <- seq(from = 0.70, to = 0.95, length.out = 5)
+no_gridpoints <- 10
+t.obs <- seq(from = 1000, to = 3000, length.out = 5)
+plots <- list(length = 5)
+for (i in (1:5)){
+  grid <- seq(from = min_sig_thresh[i], to = 1, length.out = no_gridpoints)
+  plots[[i]] <- ROC.maker(H1.data = rho.matrix.H1, H0.data = rho.matrix.H0, grid = grid, mean0 = rho0, var0 = varrho0, t.obs = t.obs[i], dt = dt, Tw = Tw)
+}
+plots[1]
+plots[2]
+plots[3]
+plots[4]
+plots[5]
 ```
 
-
+Note: in the simulations above, the thresholds were computed using the true variance and autocorrelation along with the theoretical variance for their estimators.
+This probably grants a slightly positive bias to performance, since it doesn't account for uncertainty in estimating the parameters.
+We may also improve performance by tuning Tw.
+They could also be computed from the formula given in the AMOC-article.
