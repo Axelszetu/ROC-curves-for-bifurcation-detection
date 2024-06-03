@@ -21,6 +21,7 @@ library(ggplot2)   ## For nice plotting
 library(stats4)    ## For maximum likelihood facilities (mle())
 library(writexl)   ## For writing data frames into excel files
 library(cowplot)
+library(reshape2)
 ```
 
 ##Simulation of data
@@ -305,10 +306,26 @@ for (i in (1:5)){
   grid <- seq(from = min_sig_thresh[i], to = 1, length.out = no_gridpoints)
   plots.rho[[i]] <- ROC.maker(H1.data = rho.matrix.H1, H0.data = rho.matrix.H0, grid = grid, mean0 = rho0, var0 = varrho0, t.obs = t.obs[i], dt = dt, Tw = Tw)
 }
-plots_grid(plotlist = plots.rho)
+plot_grid(plotlist = plots.rho)
 ```
 
 Note: in the simulations above, the thresholds were computed using the true variance and autocorrelation along with the theoretical variance for their estimators.
 This probably grants a slightly positive bias to performance, since it doesn't account for uncertainty in estimating the parameters.
 We may also improve performance by tuning Tw.
 They could also be computed from the formula given in the AMOC-article.
+
+The chunk below produces a plot that helps explain the construction of the ROC-curves
+```{r}
+plt.data.time <- seq(from = 60, to = 300, length.out = 3001)
+
+plt.data.H1 <- as.data.frame(var.matrix.H1[,1:5])
+plt.data.H1$time <- plt.data.time
+plt.data.H1$model <- 1
+
+plt.data.H0 <- as.data.frame(var.matrix.H0[,1:5])
+plt.data.H0$time <- plt.data.time
+plt.data.H0$model <- 0
+
+plt.data.wide <- rbind(plt.data.H1, plt.data.H0)
+```
+
