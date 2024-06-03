@@ -18,9 +18,9 @@ Then for each observation time we plot the true positive rate vector against the
 The following chunk loads the packages needed to run the notebook.
 ```{r}
 library(ggplot2)   ## For nice plotting
-library(plotROC)   ## For plotting ROC-curves
 library(stats4)    ## For maximum likelihood facilities (mle())
 library(writexl)   ## For writing data frames into excel files
+library(cowplot)
 ```
 
 ##Simulation of data
@@ -242,32 +242,34 @@ ROC.maker <- function(H1.data, H0.data, grid, mean0, var0, t.obs = 3000, dt = 0.
 
   true_positive_rates <- numeric(length = no_thresh)
   for (i in (1:no_thresh)){
-    thresh <- mean0 + thresholds[i] * sqrt(var0)
+    thresh <- mean0 + thresholds[i]*sqrt(var0)
     no_triggered <- 0
     for(j in (1:no_paths)){
       path <- H1.data[1:t.obs,j]
       triggered <- max(path > thresh)
       no_triggered <- no_triggered + triggered
     }
-  true_positive_rates[i] <- no_triggered/no_paths
+    true_positive_rates[i] <- no_triggered/no_paths
   }
 
   false_positive_rates <- numeric(length = no_thresh)
   for (i in (1:no_thresh)){
-    thresh <- mean0 + thresholds[i] * sqrt(var0)
+    thresh <- mean0 + thresholds[i]*sqrt(var0)
     no_triggered <- 0
     for(j in (1:no_paths)){
       path <- H0.data[1:t.obs,j]
       triggered <- max(path > thresh)
       no_triggered <- no_triggered + triggered
     }
-  false_positive_rates[i] <- no_triggered/no_paths
+    false_positive_rates[i] <- no_triggered/no_paths
   }
 
   roc.plot.data <- data.frame(false_positive_rates, true_positive_rates)
   plt <- ggplot(data = roc.plot.data, aes(x = false_positive_rates, y = true_positive_rates)) +
     geom_step() +
-    xlim(0,1) + ylim(0,1)
+    geom_point() +
+    xlim(0,1) + ylim(0,1) +
+    theme(aspect.ratio = 1)
   
   plt
 }
@@ -276,37 +278,34 @@ ROC.maker <- function(H1.data, H0.data, grid, mean0, var0, t.obs = 3000, dt = 0.
 The following chunk constructs an ROC-curve for the variance EWS at times corresponding to t0 + (0, 0.25, 0.5, 0.75, 1)tau
 ```{r}
 times <- seq(from = 0, to = 1, length.out = 5)
-min_sig_thresh <- seq(from = 0.70, to = 0.95, length.out = 5)
-no_gridpoints <- 10
-t.obs <- seq(from = 1000, to = 3000, length.out = 5)
-plots <- list(length = 5)
+min_sig_thresh <- seq(from = 0, to = 0.7, length.out = 5)
+no_gridpoints <- 30
+t.obs <- seq(from = 600, to = 3000, length.out = 5)
+plots.var <- list(length = 5)
 for (i in (1:5)){
   grid <- seq(from = min_sig_thresh[i], to = 1, length.out = no_gridpoints)
-  plots[[i]] <- ROC.maker(H1.data = var.matrix.H1, H0.data = var.matrix.H0, grid = grid, mean0 = gam0, var0 = vargam0, t.obs = t.obs[i], dt = dt, Tw = Tw)
+  plots.var[[i]] <- ROC.maker(H1.data = var.matrix.H1, H0.data = var.matrix.H0, grid = grid, mean0 = gam0, var0 = vargam0, t.obs = t.obs[i], dt = dt, Tw = Tw)
 }
-plots[1]
-plots[2]
-plots[3]
-plots[4]
-plots[5]
+#plots[1]
+#plots[2]
+#plots[3]
+#plots[4]
+#plots[5]
+plot_grid(plotlist = plots.var)
 ```
 
 The following chunk does the same as the above, but for the Rho EWS instead.
 ```{r}
 times <- seq(from = 0, to = 1, length.out = 5)
-min_sig_thresh <- seq(from = 0.70, to = 0.95, length.out = 5)
-no_gridpoints <- 10
-t.obs <- seq(from = 1000, to = 3000, length.out = 5)
-plots <- list(length = 5)
+min_sig_thresh <- seq(from = 0, to = 0.55, length.out = 5)
+no_gridpoints <- 30
+t.obs <- seq(from = 600, to = 3000, length.out = 5)
+plots.rho <- list(length = 5)
 for (i in (1:5)){
   grid <- seq(from = min_sig_thresh[i], to = 1, length.out = no_gridpoints)
-  plots[[i]] <- ROC.maker(H1.data = rho.matrix.H1, H0.data = rho.matrix.H0, grid = grid, mean0 = rho0, var0 = varrho0, t.obs = t.obs[i], dt = dt, Tw = Tw)
+  plots.rho[[i]] <- ROC.maker(H1.data = rho.matrix.H1, H0.data = rho.matrix.H0, grid = grid, mean0 = rho0, var0 = varrho0, t.obs = t.obs[i], dt = dt, Tw = Tw)
 }
-plots[1]
-plots[2]
-plots[3]
-plots[4]
-plots[5]
+plots_grid(plotlist = plots.rho)
 ```
 
 Note: in the simulations above, the thresholds were computed using the true variance and autocorrelation along with the theoretical variance for their estimators.
