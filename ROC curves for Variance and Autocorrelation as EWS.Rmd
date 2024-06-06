@@ -320,12 +320,27 @@ plt.data.time <- seq(from = 60, to = 300, length.out = 3001)
 
 plt.data.H1 <- as.data.frame(var.matrix.H1[,1:5])
 plt.data.H1$time <- plt.data.time
-plt.data.H1$model <- 1
+plt.data.H1$model <- as.factor(1)
+colnames(plt.data.H1)[1:5] <- c(1:5)
+plt.data.H1.long <- melt(plt.data.H1, id.vars = c("time", "model"))
+head(plt.data.H1.long)
 
 plt.data.H0 <- as.data.frame(var.matrix.H0[,1:5])
 plt.data.H0$time <- plt.data.time
-plt.data.H0$model <- 0
+plt.data.H0$model <- as.factor(0)
+colnames(plt.data.H0)[1:5] <- c(1:5)
+plt.data.H0.long <- melt(plt.data.H0, id.vars = c("time", "model"))
+head(plt.data.H0.long)
 
-plt.data.wide <- rbind(plt.data.H1, plt.data.H0)
+plt.data.long <- rbind(plt.data.H1.long, plt.data.H0.long)
+plt.data.long.subsampled <- data.frame(matrix(nrow = 3000, ncol = 4))
+colnames(plt.data.long.subsampled) <- colnames(plt.data.long)
+for (i in (1:3000)){
+  plt.data.long.subsampled[i,] <- plt.data.long[(i-1)*10+1,]
+}
+
+ggplot(data = plt.data.long.subsampled, aes(x = time, y = value, group = as.factor(variable), colour = as.factor(model))) +
+  geom_line(size = 0.1) +
+  ylim(0,0.02)
 ```
 
