@@ -119,6 +119,7 @@ for (i in 1:rep){
   nxx = min(n, length(xxx))
   X.H1[1:nxx, i] = xxx[1:nxx]
 }
+save(X.H1, file = "X.H1.Rdata")
 ```
 
 The following chuck defines a function for simulating paths from the model without ramping.
@@ -192,7 +193,7 @@ for (i in 1:rep){
   nxx = min(n, length(xxx))
   X.H0[1:nxx, i] = xxx[1:nxx]
 }
-
+save(X.H0, file = "X.H0.Rdata")
 ```
 
 ##Computation of Early Warning Signals
@@ -229,6 +230,7 @@ for(i in 1:(n - Tw/dt)){
     rho.matrix.H0[i, j] = acf(data.i, lag.max = 1, plot = FALSE)$acf[2] ## Autocorrelation estimate in running window
   }
 }
+save(var.matrix.H1, rho.matrix.H1, var.matrix.H0, rho.matrix.H0, file = "EWS.matrices")
 ```
 
 ##Construction of ROC-curves

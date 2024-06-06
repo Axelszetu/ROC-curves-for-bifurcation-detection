@@ -1,0 +1,10 @@
+---
+title: "Misspecification of drift"
+author: "Axel Szetu"
+date: "2024-06-06"
+output: html_document
+---
+
+The following notebook is written as an extension to the notebook AMOCestimation released as supplementary material to Ditlevsen et Al 2023.
+THe purpose is to test the performance of the likelihood-based estimator of tipping time in a scenaria where the drift is misspecified.
+To this end, we will simulate realizations from a model with double-well potential and use the likelihood of 3'rd degree polynomial model to estimate the tipping time and simulate the distribution of the estimator.
