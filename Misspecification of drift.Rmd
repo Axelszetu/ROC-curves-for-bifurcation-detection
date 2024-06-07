@@ -6,5 +6,45 @@ output: html_document
 ---
 
 The following notebook is written as an extension to the notebook AMOCestimation released as supplementary material to Ditlevsen et Al 2023.
-THe purpose is to test the performance of the likelihood-based estimator of tipping time in a scenaria where the drift is misspecified.
+THe purpose is to test the performance of the likelihood-based estimator of tipping time in a scenario where the drift is misspecified.
 To this end, we will simulate realizations from a model with double-well potential and use the likelihood of 3'rd degree polynomial model to estimate the tipping time and simulate the distribution of the estimator.
+
+We define the parameters of the simulation
+```{r}
+beta_4 <- 1
+beta_2 <- 1
+lambda_0 <- 1
+lambda_c <- -0.5
+t <- seq(0, 300, by = 1/12)
+t_0 <- 100
+tau <- 200
+t_end <- t_0 + tau
+h <- c(rep(0, 1200), seq(from = 0, to = 1, length.out = 2401))
+lambda_t <- (1-h)*lambda_0 + h*lambda_c
+x_0 <- 1.3
+dt <- 1/12
+nloop <- 20
+sigma <- 0.5
+```
+
+```{r}
+make_path <- function(x_0 = 1.3, betas = c(1,1), lambda_t, dt = 1/12, nloop = 20, sigma = 0.5){
+  delta_t <- dt/nloop
+  beta_4 <- betas[1]
+  beta_2 <- betas[2]
+  drift <- function(x, lambda){
+    out <- -(beta_4*x^3) + (beta_2)*x + lambda
+    out
+  }
+  X <- numeric(length = length(lambda_t))
+  X[1] <- x_0
+  dW <- rnorm(n = length(lambda_t), mean = 0, sd = 1)
+  for (i in (2:length(lambda_t))){
+    X[i] <- X[i-1] + drift(X[i-1],lambda_t[i-1])*dt + dW[i-1]*sigma*sqrt(dt)
+  }
+  X
+}
+test_path <- make_path(lambda_t = lambda_t)
+plot(test_path)
+```
+
