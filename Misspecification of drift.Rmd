@@ -59,7 +59,7 @@ plot(y = test_path$X, x = test_path$t)
 ```
 
 We estimate parameters of OU
-```{r}
+```{r, eval = FALSE}
 data_OU <- test_path[test_path$t <= t_0, "X"]
 temp   = estimate.OU(data = data_OU, delta = 1/12)
 alpha0 = unname(coef(temp)["alpha"])
@@ -68,9 +68,9 @@ sigma2 = unname(coef(temp)["sigma2"])
 ```
 
 We estimate tipping time
-```{r}
+```{r, eval = FALSE}
 #We had to edit the estimate.tipping function to take absolute value before applying square root
-data_ramp <- test_path[test_path$t > t_0, "X"]
+data_ramp <- test_path[(test_path$t > t_0) & (test_path$t <= 200), "X"]
 temp = estimate.tipping(data = data_ramp, delta = 1/12, initial.values = c(200,2),
                         alpha0 = alpha0, mu0 = mu0, sigma20 = sigma2, 
                         pen = 0.004)
@@ -81,10 +81,58 @@ lambda0 = -alpha0^2/(4 * a)
 tc      = tau + t0
 ```
 Collecting estimates
-```{r}
-## Collect estimates
+```{r, eval = FALSE}
+## Collect estimates (not that they can all be meaningfully interpreted in this scenario)
 round(c(t0 = t0, alpha0 = alpha0, mu0 = mu0, sigma2 = sigma2, tau = tau, 
         a = a, m = m, lambda0 = lambda0, tc = tc),2)
+```
+
+We simulate data and gather it into a matrix
+```{r}
+#Define parameters below
+#
+#
+#
+t_obs <- 200
+nsim <- 5
+sim_length <- t_end/dt + 1
+sim_data <- matrix(nrow = sim_length, ncol = nsim)
+for (i in (1:nsim)){
+  path <- make_path()
+  sim_data[,i] <- path$X
+}
+sim_data <- as.data.frame(sim_data)
+sim_data$t <- seq(from = 0, to = t_end, by = dt)
+```
+
+We estimate on each path and gather estimates into a matrix.
+The relevant quantities are alpha0, mu0, sigma2, tau.
+The first three come from OU, the last comes from tipping.
+```{r}
+estimates_matrix <- matrix(nrow = nsim, ncol = 4)
+colnames(estimates_matrix) <- c("alpha0", "mu0", "sigma2", "tau")
+n_0 <- t_0/dt
+n_ramp <- (t_obs-t_0)/dt
+for (i in (1:nsim)){
+  data_tmp <- sim_data[,i]
+  data_OU <- data_tmp[1:n_0]
+  estimates_OU <- estimate.OU(data = data_OU, delta = dt)
+  alpha0_tmp <- unname(coef(estimates_OU)["alpha"])
+  mu0_tmp <- unname(coef(estimates_OU)["mu"])
+  sigma2_tmp <- unname(coef(estimates_OU)["sigma2"])
+  data_ramp <- data_tmp[(n_0 + 1):(n_0 + n_ramp)]
+  estimates_ramp <- estimate.tipping(data = data_ramp, delta = dt, initial.values = c(100, 1), alpha0 = alpha0_tmp, mu0 = mu0_tmp, sigma20 = sigma2_tmp, pen = 0.004)
+  tau_tmp <- estimates_ramp$par[1]
+  estimates_matrix[i,] <- c(alpha0_tmp, mu0_tmp, sigma2_tmp, tau_tmp)
+}
+estimates_matrix
+```
+We get some estimates that are completely off the mark.
+
+```{r}
+for (i in (1:5)){
+  plot(sim_data[,i])
+}
 ```
 
 
