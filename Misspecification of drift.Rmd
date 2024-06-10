@@ -87,6 +87,14 @@ round(c(t0 = t0, alpha0 = alpha0, mu0 = mu0, sigma2 = sigma2, tau = tau,
         a = a, m = m, lambda0 = lambda0, tc = tc),2)
 ```
 
+We benchmark make_path, estimate.OU and estimate.tipping to know approximately how long a simulation with n=1000 will take.
+```{r}
+library(microbenchmark)
+microbenchmark(make_path(nloop = 20), times = 10)
+microbenchmark(estimate.OU(data = data_OU, delta = 1/12), times = 10)
+microbenchmark(estimate.tipping(data = test_path$X[1201:2401], alpha0 = alpha0, mu0 = mu0, sigma2 = sigma2, delta = 1/12, pen = 0.004, initial.values = c(100, 1)), times = 10)
+```
+
 We simulate data and gather it into a matrix
 ```{r}
 #Define parameters below
@@ -94,16 +102,17 @@ We simulate data and gather it into a matrix
 #
 #
 t_obs <- 200
-nsim <- 5
+nsim <- 1000
 sim_length <- t_end/dt + 1
 sim_data <- matrix(nrow = sim_length, ncol = nsim)
 for (i in (1:nsim)){
-  path <- make_path()
+  path <- make_path(nloop = 20)
   sim_data[,i] <- path$X
 }
 sim_data <- as.data.frame(sim_data)
 sim_data$t <- seq(from = 0, to = t_end, by = dt)
 ```
+
 
 We estimate on each path and gather estimates into a matrix.
 The relevant quantities are alpha0, mu0, sigma2, tau.
