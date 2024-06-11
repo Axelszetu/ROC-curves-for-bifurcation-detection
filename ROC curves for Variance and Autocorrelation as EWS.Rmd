@@ -72,7 +72,7 @@ S.onestep <- function(sigma = 0.1, lambda = 0, m = 0, a = 1, X0 = 1, dt = 0.1){
 
 The following chunk simulates paths from a model where the pre-ramping time is 100 and tau is 200, with a total length of 300.
 This too is taken from the supplementary material of Ditlevsen.
-```{r}
+```{r, eval = FALSE}
 ## Parameter values used in the simulation
 tau  = 200  ## 
 l0   = -3   ## Baseline control parameter lambda
@@ -146,7 +146,7 @@ X.traj.H0 <- function(sigma = 0.1, lambda0 = -2, tau = 1000, m = 0, a = 1,
 ```
 
 The following chunk simulates paths from a model where the pre-ramping time is 300 and tau is 0, with a total length of 300. This corresponds to the model with no ramping.
-```{r}
+```{r, eval = FALSE}
 ## Parameter values used in the simulation
 tau  = 0  ## 
 l0   = -3   ## Baseline control parameter lambda
@@ -198,7 +198,7 @@ save(X.H0, file = "X.H0.Rdata")
 
 ##Computation of Early Warning Signals
 The following chunk computes the variance and autocorrelation within each window for both datasets.
-```{r}
+```{r, eval = FALSE}
 ### Variance and autocorrelation estimation in running windows
 ### Data is detrended within each window
 
@@ -269,8 +269,9 @@ ROC.maker <- function(H1.data, H0.data, grid, mean0, var0, t.obs = 3000, dt = 0.
 
   roc.plot.data <- data.frame(false_positive_rates, true_positive_rates)
   plt <- ggplot(data = roc.plot.data, aes(x = false_positive_rates, y = true_positive_rates)) +
-    geom_step() +
+    geom_line() +
     geom_point() +
+    geom_segment(aes(x = 0, y = 0, xend = 1, yend = 1), color = "red") +
     xlim(0,1) + ylim(0,1) +
     theme(aspect.ratio = 1)
   
