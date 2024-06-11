@@ -14,7 +14,7 @@ We define the parameters of the simulation
 beta_4 <- 1
 beta_2 <- 1
 lambda_0 <- 1
-lambda_c <- -0.4
+lambda_c <- -(2/3)/sqrt(3)
 t <- seq(0, 300, by = 1/12)
 t_0 <- 100
 tau <- 200
@@ -134,14 +134,20 @@ for (i in (1:nsim)){
   tau_tmp <- estimates_ramp$par[1]
   estimates_matrix[i,] <- c(alpha0_tmp, mu0_tmp, sigma2_tmp, tau_tmp)
 }
-estimates_matrix
 ```
-We get some estimates that are completely off the mark.
-
+We inspect the distribution on the tau-estimates:
 ```{r}
-for (i in (1:5)){
-  plot(sim_data[,i])
-}
+hist(estimates_matrix[,4], breaks = 20)
+mean(estimates_matrix[,4])
 ```
+Making a ggplot
+```{r}
+tau <- estimates_matrix[,4]
+plt.data <- data.frame(tau)
+ggplot(data = plt.data, aes(x = tau)) + geom_histogram(bins = 50) + geom_vline(aes(xintercept = mean(tau)), color = "red") +geom_vline(aes(xintercept = 200), color = "blue")
+```
+
+
+
 
 
