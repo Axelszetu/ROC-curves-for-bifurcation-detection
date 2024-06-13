@@ -342,7 +342,7 @@ for (i in (1:3000)){
   plt.data.long.subsampled[i,] <- plt.data.long[(i-1)*10+1,]
 }
 
-ggplot(data = plt.data.long.subsampled, aes(x = time, y = value, group = as.factor(variable), colour = as.factor(model))) +
+ggplot(data = plt.data.long.subsampled, aes(x = time, y = value, by = as.factor(variable), colour = as.factor(model))) +
   geom_line(size = 0.1) +
   ylim(0,0.02)
 ```
