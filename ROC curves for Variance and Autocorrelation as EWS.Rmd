@@ -78,6 +78,7 @@ tau  = 200  ##
 l0   = -3   ## Baseline control parameter lambda
 sigm = 0.25  ## 
 s2   = sigm^2  ## 
+A = 1
 
 ## Settings for simulation and estimation
 rep = 1000   ## Number of repetitions of simulated traces
@@ -197,6 +198,34 @@ save(X.H0, file = "X.H0.Rdata")
 ```
 
 ##Computation of Early Warning Signals
+First, we compute the $T_w$ for both variance and autocorrelation, with $q = 1$ and $\alpha = \alpha(\lambda_{t0 + \tau/2})$. 
+```{r}
+alpha_computer <- function(lambda, A){
+  alpha <- 2*sqrt(A*abs(lambda))
+  alpha
+}
+
+T_w_var_computer <- function(lambda_0, lambda_t, q, A = 1){
+  alpha_0 <- alpha_computer(lambda_0, A)
+  alpha_t <- alpha_computer(lambda_t, A)
+  T_w <- 2*q^2*((alpha_t/sqrt(alpha_0) + alpha_0/sqrt(alpha_t))/(alpha_0-alpha_t))^2
+  T_w
+}
+
+T_w_rho_computer <- function(lambda_0, lambda_t, q, A, rho){
+  alpha_0 <- alpha_computer(lambda_0, A)
+  alpha_t <- alpha_computer(lambda_t, A)
+  T_w <- 2*q^2*((sqrt(alpha_0) + sqrt(alpha_t))/(alpha_0 - alpha_t))^2*rho^(-2)
+  T_w
+}
+
+T_w_var <- T_w_var_computer(lambda_0 = l0, lambda_t = l0/2, q = 1, A = A)
+T_w_rho <- T_w_rho_computer(lambda_0 = l0, lambda_t = l0/2, q = 1, A = A, rho = rho0)
+T_w_var
+T_w_rho
+```
+
+
 The following chunk computes the variance and autocorrelation within each window for both datasets.
 ```{r, eval = FALSE}
 ### Variance and autocorrelation estimation in running windows

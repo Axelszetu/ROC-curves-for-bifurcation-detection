@@ -14,7 +14,7 @@ T_w_var_computer <- function(lambda_0, lambda_t, q, A = 1){
   T_w <- 2*q^2*((alpha_t/sqrt(alpha_0) + alpha_0/sqrt(alpha_t))/(alpha_0-alpha_t))^2
   T_w
 }
-T_w_var_computer(lambda_0 = -1.5, lambda_t = -1.5/2, q = 1, A = 0.75)
+T_w_var_computer(lambda_0 = -3, lambda_t = -1.5, q = 1, A = 1)
 #Okay, I get som reasonable numbers. Good jobbo.
 
 T_w_rho_computer <- function(lambda_0, lambda_t, q, A, rho){
@@ -23,4 +23,4 @@ T_w_rho_computer <- function(lambda_0, lambda_t, q, A, rho){
   T_w <- 2*q^2*((sqrt(alpha_0) + sqrt(alpha_t))/(alpha_0 - alpha_t))^2*rho^(-2)
   T_w
 }
-T_w_rho_computer(lambda_0 = -1.5, lambda_t = -1.5/2, q = 1, A = 0.75, rho = rho0)
+T_w_rho_computer(lambda_0 = -3, lambda_t = -1.5, q = 1, A = 1, rho = rho0)
