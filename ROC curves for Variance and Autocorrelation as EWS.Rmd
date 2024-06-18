@@ -224,6 +224,37 @@ T_w_rho <- T_w_rho_computer(lambda_0 = l0, lambda_t = l0/2, q = 1, A = A, rho = 
 T_w_var
 T_w_rho
 ```
+We now compute baseline estimates on the simulated paths before ramping.
+
+```{r, eval = FALSE}
+baseline_estimates_H0 <- matrix(nrow = 4, ncol = nsim)
+for (i in (1:nsim)){
+  baseline_data <- X.H0[1:1201, i]
+  baseline_estimates <- estimate.OU(baseline_data, delta = 1/12)
+  alpha_0 <- unname(coef(baseline_estimates)["alpha"])
+  sigma2_0 <- unname(coef(baseline_estimates)["sigma2"])
+  gamma2_0 <- sigma2_0/(2*alpha_0)
+  rho_0 <- exp(-alpha_0*dt)
+  var_gamma_0 <- 2*gamma2_0^2*(1+rho_0^2)/((1-rho_0)*1200)
+  var_rho_0 <- (1-rho_0^2)/1200
+  baseline_estimates_H0[,i] <- c(gamma2_0, rho_0, var_gamma_0, var_rho_0)
+}
+```
+
+```{r, eval = FALSE}
+baseline_estimates_H1 <- matrix(nrow = 4, ncol = nsim)
+for (i in (1:nsim)){
+  baseline_data <- X.H1[1:1201, i]
+  baseline_estimates <- estimate.OU(baseline_data, delta = 1/12)
+  alpha_0 <- unname(coef(baseline_estimates)["alpha"])
+  sigma2_0 <- unname(coef(baseline_estimates)["sigma2"])
+  gamma2_0 <- sigma2_0/(2*alpha_0)
+  rho_0 <- exp(-alpha_0*dt)
+  var_gamma_0 <- 2*gamma2_0^2*(1+rho_0^2)/((1-rho_0)*1200)
+  var_rho_0 <- (1-rho_0^2)/1200
+  baseline_estimates_H0[,i] <- c(gamma2_0, rho_0, var_gamma_0, var_rho_0)
+}
+```
 
 
 The following chunk computes the variance and autocorrelation within each window for both datasets.
@@ -231,8 +262,8 @@ The following chunk computes the variance and autocorrelation within each window
 ### Variance and autocorrelation estimation in running windows
 ### Data is detrended within each window
 
-var.matrix.H1 = matrix(-1, ncol = rep, nrow = n - Tw/dt)
-rho.matrix.H1 = matrix(-1, ncol = rep, nrow = n - Tw/dt)
+var.matrix.H1 = matrix(-1, ncol = rep, nrow = n - T_w_var/dt)
+rho.matrix.H1 = matrix(-1, ncol = rep, nrow = n - T_w_rho/dt)
 for(i in 1:(n - Tw/dt)){
   for(j in 1:rep){
     data.i = X.H1[i:(i+Tw/dt),j] ## Get data in running window
