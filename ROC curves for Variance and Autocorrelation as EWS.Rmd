@@ -263,25 +263,45 @@ The following chunk computes the variance and autocorrelation within each window
 ### Data is detrended within each window
 
 var.matrix.H1 = matrix(-1, ncol = rep, nrow = n - T_w_var/dt)
-rho.matrix.H1 = matrix(-1, ncol = rep, nrow = n - T_w_rho/dt)
-for(i in 1:(n - Tw/dt)){
+for(i in 1:(n - T_w_var/dt)){
   for(j in 1:rep){
-    data.i = X.H1[i:(i+Tw/dt),j] ## Get data in running window
+    data.i = X.H1[i:(i+T_w_var/dt),j] ## Get data in running window
     data.i = data.i[data.i > -2.3] ## Remove data if tipped
     time.i = (1:length(data.i))*dt ## Get time interval for data in running window
     temp   = lm(data.i ~ time.i)   ## Get linear trend
     data.i = data.i - temp$fitted.values ## Subtract linear trend
     var.matrix.H1[i, j] = var(data.i) ## Variance estimate in running window
+  }
+}
+
+rho.matrix.H1 = matrix(-1, ncol = rep, nrow = n - T_w_rho/dt)
+for(i in 1:(n - T_w_rho/dt)){
+  for(j in 1:rep){
+    data.i = X.H1[i:(i+T_w_rho/dt),j] ## Get data in running window
+    data.i = data.i[data.i > -2.3] ## Remove data if tipped
+    time.i = (1:length(data.i))*dt ## Get time interval for data in running window
+    temp   = lm(data.i ~ time.i)   ## Get linear trend
+    data.i = data.i - temp$fitted.values ## Subtract linear trend
     rho.matrix.H1[i, j] = acf(data.i, lag.max = 1, plot = FALSE)$acf[2] ## Autocorrelation estimate in running window
   }
 }
 
-
-var.matrix.H0 = matrix(-1, ncol = rep, nrow = n - Tw/dt)
-rho.matrix.H0 = matrix(-1, ncol = rep, nrow = n - Tw/dt)
-for(i in 1:(n - Tw/dt)){
+var.matrix.H0 = matrix(-1, ncol = rep, nrow = n - T_w_var/dt)
+for(i in 1:(n - T_w_var/dt)){
   for(j in 1:rep){
-    data.i = X.H0[i:(i+Tw/dt),j] ## Get data in running window
+    data.i = X.H0[i:(i+T_w_var/dt),j] ## Get data in running window
+    data.i = data.i[data.i > -2.3] ## Remove data if tipped
+    time.i = (1:length(data.i))*dt ## Get time interval for data in running window
+    temp   = lm(data.i ~ time.i)   ## Get linear trend
+    data.i = data.i - temp$fitted.values ## Subtract linear trend
+    var.matrix.H0[i, j] = var(data.i) ## Variance estimate in running window
+  }
+}
+
+rho.matrix.H0 = matrix(-1, ncol = rep, nrow = n - T_w_rho/dt)
+for(i in 1:(n - T_w_rho/dt)){
+  for(j in 1:rep){
+    data.i = X.H0[i:(i+T_w_rho/dt),j] ## Get data in running window
     data.i = data.i[data.i > -2.3] ## Remove data if tipped
     time.i = (1:length(data.i))*dt ## Get time interval for data in running window
     temp   = lm(data.i ~ time.i)   ## Get linear trend
@@ -290,7 +310,7 @@ for(i in 1:(n - Tw/dt)){
     rho.matrix.H0[i, j] = acf(data.i, lag.max = 1, plot = FALSE)$acf[2] ## Autocorrelation estimate in running window
   }
 }
-save(var.matrix.H1, rho.matrix.H1, var.matrix.H0, rho.matrix.H0, file = "EWS.matrices")
+save(var.matrix.H1, rho.matrix.H1, var.matrix.H0, rho.matrix.H0, file = "EWS.matrices.new.windows")
 ```
 
 ##Construction of ROC-curves
