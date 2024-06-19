@@ -252,7 +252,7 @@ for (i in (1:nsim)){
   rho_0 <- exp(-alpha_0*dt)
   var_gamma_0 <- 2*gamma2_0^2*(1+rho_0^2)/((1-rho_0)*1200)
   var_rho_0 <- (1-rho_0^2)/1200
-  baseline_estimates_H0[,i] <- c(gamma2_0, rho_0, var_gamma_0, var_rho_0)
+  baseline_estimates_H1[,i] <- c(gamma2_0, rho_0, var_gamma_0, var_rho_0)
 }
 ```
 
@@ -316,18 +316,18 @@ save(var.matrix.H1, rho.matrix.H1, var.matrix.H0, rho.matrix.H0, file = "EWS.mat
 ##Construction of ROC-curves
 The following chunk defines a function taking two datasets H1, H0, a time and a vector of significance thresholds as arguments and returns a ROC curve associated with the EWS at that time for the two data sets.
 ```{r}
-ROC.maker <- function(H1.data, H0.data, grid, mean0, var0, t.obs = 3000, dt = 0.1, Tw = 50){
+ROC.maker <- function(H1.data, H0.data, grid, mean0_H1, var0_H1, mean0_H0, var0_H0, t.obs = 3000, dt = 0.1, Tw = 50){
   thresholds <- qnorm(grid)
   no_thresh <- length(thresholds)
-  thresh_scaled <- mean0 + thresholds*sqrt(var0)
   no_paths <- dim(H1.data)[2]
   t.obs <- t.obs - Tw/dt
 
   true_positive_rates <- numeric(length = no_thresh)
   for (i in (1:no_thresh)){
-    thresh <- mean0 + thresholds[i]*sqrt(var0)
     no_triggered <- 0
+    #browser()
     for(j in (1:no_paths)){
+      thresh <- mean0_H1[j] + thresholds[i]*sqrt(var0_H1[j])
       path <- H1.data[1:t.obs,j]
       triggered <- max(path > thresh)
       no_triggered <- no_triggered + triggered
@@ -337,9 +337,9 @@ ROC.maker <- function(H1.data, H0.data, grid, mean0, var0, t.obs = 3000, dt = 0.
 
   false_positive_rates <- numeric(length = no_thresh)
   for (i in (1:no_thresh)){
-    thresh <- mean0 + thresholds[i]*sqrt(var0)
     no_triggered <- 0
     for(j in (1:no_paths)){
+      thresh <- mean0_H0[j] + thresholds[i]*sqrt(var0_H0[j])
       path <- H0.data[1:t.obs,j]
       triggered <- max(path > thresh)
       no_triggered <- no_triggered + triggered
@@ -361,41 +361,45 @@ ROC.maker <- function(H1.data, H0.data, grid, mean0, var0, t.obs = 3000, dt = 0.
 
 The following chunk constructs an ROC-curve for the variance EWS at times corresponding to t0 + (0, 0.25, 0.5, 0.75, 1)tau
 ```{r}
+mean0_H1_var <- baseline_estimates_H1[1,]
+var0_H1_var <- baseline_estimates_H1[3,]
+mean0_H0_var <- baseline_estimates_H0[1,]
+var0_H0_var <- baseline_estimates_H0[3,]
+
 times <- seq(from = 0, to = 1, length.out = 5)
 min_sig_thresh <- seq(from = 0, to = 0.7, length.out = 5)
 no_gridpoints <- 30
-t.obs <- seq(from = 600, to = 3000, length.out = 5)
+t.obs <- seq(from = ceiling(T_w_var)/dt, to = 3000, length.out = 5)
 plots.var <- list(length = 5)
 for (i in (1:5)){
   grid <- seq(from = min_sig_thresh[i], to = 1, length.out = no_gridpoints)
-  plots.var[[i]] <- ROC.maker(H1.data = var.matrix.H1, H0.data = var.matrix.H0, grid = grid, mean0 = gam0, var0 = vargam0, t.obs = t.obs[i], dt = dt, Tw = Tw)
+  #grid <- grid^(1/(5*i))
+  plots.var[[i]] <- ROC.maker(H1.data = var.matrix.H1, H0.data = var.matrix.H0, grid = grid, mean0_H1 = mean0_H1_var, var0_H1 = var0_H1_var, mean0_H0 = mean0_H0_var, var0_H0 = var0_H0_var, t.obs = t.obs[i], dt = dt, Tw = T_w_var)
 }
-#plots[1]
-#plots[2]
-#plots[3]
-#plots[4]
-#plots[5]
+
 plot_grid(plotlist = plots.var)
 ```
 
 The following chunk does the same as the above, but for the Rho EWS instead.
 ```{r}
+mean0_H1_rho <- baseline_estimates_H1[2,]
+var0_H1_rho <- baseline_estimates_H1[4,]
+mean0_H0_rho <- baseline_estimates_H0[2,]
+var0_H0_rho <- baseline_estimates_H0[4,]
+
 times <- seq(from = 0, to = 1, length.out = 5)
-min_sig_thresh <- seq(from = 0, to = 0.55, length.out = 5)
+min_sig_thresh <- seq(from = 0, to = 0.7, length.out = 5)
 no_gridpoints <- 30
-t.obs <- seq(from = 600, to = 3000, length.out = 5)
+t.obs <- seq(from = ceiling(T_w_rho)/dt, to = 3000, length.out = 5)
 plots.rho <- list(length = 5)
 for (i in (1:5)){
   grid <- seq(from = min_sig_thresh[i], to = 1, length.out = no_gridpoints)
-  plots.rho[[i]] <- ROC.maker(H1.data = rho.matrix.H1, H0.data = rho.matrix.H0, grid = grid, mean0 = rho0, var0 = varrho0, t.obs = t.obs[i], dt = dt, Tw = Tw)
+  plots.rho[[i]] <- ROC.maker(H1.data = rho.matrix.H1, H0.data = rho.matrix.H0, grid = grid, mean0_H1 = mean0_H1_rho, var0_H1 = var0_H1_rho, mean0_H0 = mean0_H0_rho, var0_H0 = var0_H0_rho, t.obs = t.obs[i], dt = dt, Tw = T_w_rho)
 }
+
 plot_grid(plotlist = plots.rho)
 ```
 
-Note: in the simulations above, the thresholds were computed using the true variance and autocorrelation along with the theoretical variance for their estimators.
-This probably grants a slightly positive bias to performance, since it doesn't account for uncertainty in estimating the parameters.
-We may also improve performance by tuning Tw.
-They could also be computed from the formula given in the AMOC-article.
 
 The chunk below produces a plot that helps explain the construction of the ROC-curves
 ```{r}
