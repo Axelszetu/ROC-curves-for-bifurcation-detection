@@ -353,7 +353,8 @@ ROC.maker <- function(H1.data, H0.data, grid, mean0_H1, var0_H1, mean0_H0, var0_
     geom_point() +
     geom_segment(aes(x = 0, y = 0, xend = 1, yend = 1), color = "red") +
     xlim(0,1) + ylim(0,1) +
-    theme(aspect.ratio = 1)
+    theme(aspect.ratio = 1) +
+    xlab("False positive rate") + ylab("True positive rate")
   
   plt
 }
@@ -371,14 +372,51 @@ min_sig_thresh <- seq(from = 0, to = 0.7, length.out = 5)
 no_gridpoints <- 30
 t.obs <- seq(from = ceiling(T_w_var)/dt, to = 3000, length.out = 5)
 plots.var <- list(length = 5)
+```
+```{r}
+grid_var_1 <- seq(from = 0, to = 1, length.out = 30)
+grid_var_2 <- seq(from = 0.4, to = 1, length.out = 20)
+grid_var_2 <- c(grid_var_2, seq(from = 0.99, to = 1, length.out = 5))
+grid_var_3 <- seq(from = 0.5, to = 1, length.out = 20)
+grid_var_3 <- c(grid_var_3, seq(from = 0.99, to = 1, length.out = 20))
+grid_var_3 <- c(grid_var_3, seq(from = 0.999, to = 1, length.out = 5))
+grid_var_4 <- seq(from = 0.7, to = 1, length.out = 20)
+grid_var_4 <- c(grid_var_4, seq(from = 0.99, to = 1, length.out = 10))
+grid_var_4 <- c(grid_var_4, seq(from = 0.9995, to = 1, length.out = 10))
+grid_var_4 <- c(grid_var_4, seq(from = 0.99999, to = 1, length.out = 10))
+grid_var_5 <- seq(from = 0.75, to = 1, length.out = 20)
+grid_var_5 <- c(grid_var_5, seq(from = 0.99, to = 1, length.out = 10))
+grid_var_5 <- c(grid_var_5, seq(from = 0.9999, to = 1, length.out = 10))
+grid_var_5 <- c(grid_var_5, seq(from = 0.9999999, to = 1, length.out = 3))
+grids_var <- list(grid_var_1, grid_var_2, grid_var_3, grid_var_4, grid_var_5)
 for (i in (1:5)){
-  grid <- seq(from = min_sig_thresh[i], to = 1, length.out = no_gridpoints)
+  #grid <- seq(from = min_sig_thresh[i], to = 1, length.out = no_gridpoints)
   #grid <- grid^(1/(5*i))
-  plots.var[[i]] <- ROC.maker(H1.data = var.matrix.H1, H0.data = var.matrix.H0, grid = grid, mean0_H1 = mean0_H1_var, var0_H1 = var0_H1_var, mean0_H0 = mean0_H0_var, var0_H0 = var0_H0_var, t.obs = t.obs[i], dt = dt, Tw = T_w_var)
+  plots.var[[i]] <- ROC.maker(H1.data = var.matrix.H1, H0.data = var.matrix.H0, grid = grids_var[[i]], mean0_H1 = mean0_H1_var, var0_H1 = var0_H1_var, mean0_H0 = mean0_H0_var, var0_H0 = var0_H0_var, t.obs = t.obs[i], dt = dt, Tw = T_w_var)
 }
 
-plot_grid(plotlist = plots.var)
+plt <- plot_grid(plotlist = plots.var, labels = c("a = 0", "a = 0.25", "a = 0.5", "a = 0.75", "a = 1"), label_x = 0.5, label_y = 0.35)
+title <- ggdraw() + 
+  draw_label(
+    "ROC-curves for Variance EWS",
+    fontface = 'bold',
+    x = 0,
+    hjust = 0
+  ) +
+  theme(
+    # add margin on the left of the drawing canvas,
+    # so title is aligned with left edge of first plot
+    plot.margin = margin(0, 0, 0, 7)
+  )
+
+plot_grid(
+  title, plt,
+  ncol = 1,
+  # rel_heights values control vertical title margins
+  rel_heights = c(0.1, 1)
+)
 ```
+
 
 The following chunk does the same as the above, but for the Rho EWS instead.
 ```{r}
@@ -392,12 +430,47 @@ min_sig_thresh <- seq(from = 0, to = 0.7, length.out = 5)
 no_gridpoints <- 30
 t.obs <- seq(from = ceiling(T_w_rho)/dt, to = 3000, length.out = 5)
 plots.rho <- list(length = 5)
+
+grid_rho_1 <- seq(from = 0, to = 1, length.out = 30)
+grid_rho_2 <- seq(from = 0.4, to = 1, length.out = 30)
+#grid_rho_2 <- c(grid_rho_2, seq(from = 0.99, to = 1, length.out = 5))
+grid_rho_3 <- seq(from = 0.5, to = 1, length.out = 20)
+grid_rho_3 <- c(grid_rho_3, seq(from = 0.99, to = 1, length.out = 10))
+#grid_rho_3 <- c(grid_rho_3, seq(from = 0.999, to = 1, length.out = 5))
+grid_rho_4 <- seq(from = 0.7, to = 1, length.out = 20)
+grid_rho_4 <- c(grid_rho_4, seq(from = 0.99, to = 1, length.out = 10))
+grid_rho_4 <- c(grid_rho_4, seq(from = 0.9995, to = 1, length.out = 10))
+grid_rho_5 <- seq(from = 0.75, to = 1, length.out = 20)
+grid_rho_5 <- c(grid_rho_5, seq(from = 0.99, to = 1, length.out = 10))
+grid_rho_5 <- c(grid_rho_5, seq(from = 0.9999, to = 1, length.out = 10))
+grid_rho_5 <- c(grid_rho_5, seq(from = 0.9999999, to = 1, length.out = 10))
+grids_rho <- list(grid_rho_1, grid_rho_2, grid_rho_3, grid_rho_4, grid_rho_5)
+
 for (i in (1:5)){
-  grid <- seq(from = min_sig_thresh[i], to = 1, length.out = no_gridpoints)
-  plots.rho[[i]] <- ROC.maker(H1.data = rho.matrix.H1, H0.data = rho.matrix.H0, grid = grid, mean0_H1 = mean0_H1_rho, var0_H1 = var0_H1_rho, mean0_H0 = mean0_H0_rho, var0_H0 = var0_H0_rho, t.obs = t.obs[i], dt = dt, Tw = T_w_rho)
+  #grid <- seq(from = min_sig_thresh[i], to = 1, length.out = no_gridpoints)
+  plots.rho[[i]] <- ROC.maker(H1.data = rho.matrix.H1, H0.data = rho.matrix.H0, grid = grids_rho[[i]], mean0_H1 = mean0_H1_rho, var0_H1 = var0_H1_rho, mean0_H0 = mean0_H0_rho, var0_H0 = var0_H0_rho, t.obs = t.obs[i], dt = dt, Tw = T_w_rho)
 }
 
-plot_grid(plotlist = plots.rho)
+plt <- plot_grid(plotlist = plots.rho, labels = c("a = 0", "a = 0.25", "a = 0.5", "a = 0.75", "a = 1"), label_x = 0.5, label_y = 0.35)
+title <- ggdraw() + 
+  draw_label(
+    "ROC-curves for Autocorrelation EWS",
+    fontface = 'bold',
+    x = 0,
+    hjust = 0
+  ) +
+  theme(
+    # add margin on the left of the drawing canvas,
+    # so title is aligned with left edge of first plot
+    plot.margin = margin(0, 0, 0, 7)
+  )
+
+plot_grid(
+  title, plt,
+  ncol = 1,
+  # rel_heights values control vertical title margins
+  rel_heights = c(0.1, 1)
+)
 ```
 
 
