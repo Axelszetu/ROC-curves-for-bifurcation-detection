@@ -227,6 +227,7 @@ T_w_rho
 We now compute baseline estimates on the simulated paths before ramping.
 
 ```{r, eval = FALSE}
+load("X.H0.Rdata")
 baseline_estimates_H0 <- matrix(nrow = 4, ncol = nsim)
 for (i in (1:nsim)){
   baseline_data <- X.H0[1:1201, i]
@@ -242,6 +243,7 @@ for (i in (1:nsim)){
 ```
 
 ```{r, eval = FALSE}
+load("X.H1.Rdata")
 baseline_estimates_H1 <- matrix(nrow = 4, ncol = nsim)
 for (i in (1:nsim)){
   baseline_data <- X.H1[1:1201, i]
